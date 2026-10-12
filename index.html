@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NeuroSTEP IA</title>
+
+<script src="supabase-connection.js"></script>
+<script src="data.js"></script>
+
+<script>
+/* ---------- Protección de sesión ---------- */
+function applySessionView(doc){
+  try {
+    const initials = (doc.name || "").split(" ").map(n => n[0]).join("").slice(0,2).toUpperCase();
+    const first = (doc.name || "").split(" ")[0] || "User";
+
+    const mainTitle = document.querySelector(".main h1");
+    const sideText = document.querySelector(".side p");
+    const userAvatar = document.querySelector(".user .avatar");
+    const userInfo = document.querySelector(".user > div:last-child");
+    const sideAvatar = document.querySelector(".side .profile-link .avatar");
+    const sideName = document.querySelector(".side .profile-name");
+    const sideMeta = document.querySelector(".side .profile-meta");
+    const sideProfileLink = document.querySelector(".side .profile-link");
+    const logoutBtn = document.querySelector('.icons button[title="Salir"]');
+
+    if (mainTitle) mainTitle.textContent = `Welcome back, ${first} – Medical Portal Dashboard`;
+    if (sideText) sideText.textContent = `Welcome to NeuroStep IA, ${first}. Your patient list and key data are ready.`;
+    if (userAvatar) userAvatar.textContent = initials;
+    if (userInfo) userInfo.innerHTML = `${doc.name}<small>Logged in</small>`;
+    if (sideAvatar) sideAvatar.textContent = initials;
+    if (sideName) sideName.textContent = doc.name || "Doctor";
+    if (sideMeta) sideMeta.textContent = `ID: ${doc.id || "—"} · ${doc.role || "Personal médico"}`;
+    if (sideProfileLink) sideProfileLink.setAttribute("aria-label", `Ver perfil del doctor ${doc.name || ""}`);
+    if (logoutBtn) logoutBtn.addEventListener("click", async () => {
+      try {
+        await window.supabaseApp.signOut();
+      } catch (error) {
+        console.error("No se pudo cerrar la sesión:", error);
+        alert("No se pudo cerrar la sesión. Inténtalo de nuevo.");
+      }
+    });
+  } catch (e) {
+    console.error("No se pudo mostrar el perfil del doctor:", e);
+    location.replace("login.html");
+  }
+}
+
+(async () => {
+  try {
+    const doctor = await window.supabaseApp.requireDoctor();
+    if (doctor) applySessionView(doctor);
+  } catch (error) {
+    console.error("No se pudo validar el acceso al panel:", error);
+    alert("No se pudo conectar con Supabase. Verifica tu conexión e inténtalo de nuevo.");
+  }
+})();
+</script>
+<style>
+  :root{
+    --bg:#0a1114;
+    --panel:#0e181c;
+    --card:#101c21;
+    --line:#17323a;
+    --cyan:#22d3e6;
+    --cyan-soft:rgba(34,211,230,.15);
+    --text:#e6f1f3;
+    --muted:#7f98a0;
+    --green:#3fae49;
+    --red:#e04848;
+    --orange:#f0a020;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+
+  
+  body{
+    font-family:"Segoe UI",Roboto,Arial,sans-serif;
+    background:var(--bg);
+    color:var(--text);
+    height:100vh;
+    overflow:hidden;
+  }
+  .app{
+    display:grid;
+    grid-template-columns:56px 260px 1fr;
+    grid-template-rows:64px 1fr;
+    height:100vh;
+  }
+
+  /* ---------- Topbar ---------- */
+  .topbar{
+    grid-column:1 / -1;
+    display:flex;align-items:center;gap:16px;
+    padding:0 20px;
+    background:var(--panel);
+    border-bottom:1px solid var(--line);
+  }
+  .burger{font-size:22px;color:var(--muted);cursor:pointer}
+  .brand{display:flex;align-items:center;gap:10px;font-size:20px}
+  .brand b{color:var(--cyan);font-weight:600}
+  .brand span{color:var(--muted)}
+  .spacer{flex:1}
+  .search{
+    background:transparent;border:1px solid var(--cyan);border-radius:6px;
+    color:var(--text);padding:6px 12px;width:200px;font-size:13px;outline:none;
+  }
+  .search::placeholder{color:var(--muted)}
+  .user{display:flex;align-items:center;gap:10px;padding-left:16px;border-left:1px solid var(--line)}
+  .user small{display:block;color:var(--muted);font-size:11px}
+  .avatar{
+    width:34px;height:34px;border-radius:50%;
+    background:linear-gradient(135deg,#2a4a55,#173039);
+    display:grid;place-items:center;font-size:12px;font-weight:600;color:var(--cyan);
+    border:1px solid var(--line);flex-shrink:0;
+  }
+
+  /* ---------- Icon sidebar ---------- */
+  .icons{
+    background:var(--panel);
+    border-right:1px solid var(--line);
+    display:flex;flex-direction:column;align-items:center;gap:6px;padding-top:12px;
+  }
+  .icons button{
+    width:40px;height:40px;border:none;background:transparent;
+    color:var(--muted);font-size:18px;cursor:pointer;border-radius:6px;
+  }
+  .icons .icon-link{
+    width:40px;height:40px;display:grid;place-items:center;text-decoration:none;
+    color:var(--muted);font-size:18px;border-radius:6px;
+  }
+  .icons button.active,.icons button:hover,.icons .icon-link:hover{
+    background:var(--cyan-soft);color:var(--cyan);
+    box-shadow:inset 3px 0 0 var(--cyan);
+  }
+
+  /* ---------- Left panel ---------- */
+  .side{
+    background:var(--panel);
+    border-right:2px solid rgba(34,211,230,.35);
+    box-shadow:0 0 18px rgba(34,211,230,.12);
+    padding:28px 20px 16px;
+    display:flex;flex-direction:column;align-items:center;text-align:center;
+  }
+  .logo{font-size:56px;filter:drop-shadow(0 0 10px var(--cyan))}
+  .side h2{font-size:20px;font-weight:500;margin-top:8px}
+  .side .sub{color:var(--muted);font-size:12px}
+  .side h3{margin-top:32px;font-size:16px;font-weight:500}
+  .side p{color:var(--muted);font-size:12px;margin-top:8px;line-height:1.5}
+  .patient-summary{
+    display:grid;grid-template-columns:1fr 1fr;gap:8px;
+    width:100%;margin-top:22px;text-align:left;
+  }
+  .summary-item{
+    min-width:0;padding:10px 9px;border-radius:6px;background:var(--card);
+    border:1px solid var(--line);
+  }
+  .summary-item strong{display:block;font-size:20px;font-weight:600;line-height:1.2}
+  .summary-item span{display:block;margin-top:4px;color:var(--muted);font-size:10px;line-height:1.3}
+  .summary-item.total strong{color:var(--cyan)}
+  .summary-item.urgent strong{color:var(--red)}
+  .summary-item.soon strong{color:var(--orange)}
+  .summary-item.routine strong{color:var(--green)}
+  .side .bottom{
+    margin-top:auto;width:100%;text-align:left;
+    border-top:1px solid var(--line);padding-top:14px;
+  }
+  .side .profile-link{
+    display:flex;align-items:center;gap:12px;padding:12px;
+    border:1px solid var(--line);border-radius:10px;background:
+      linear-gradient(135deg,rgba(34,211,230,.10),rgba(34,211,230,.025)),var(--card);
+    color:var(--text);text-decoration:none;transition:border-color .2s,transform .2s,box-shadow .2s;
+  }
+  .side .profile-link:hover,.side .profile-link:focus-visible{
+    border-color:var(--cyan);transform:translateY(-2px);
+    box-shadow:0 8px 20px rgba(0,0,0,.2),0 0 14px rgba(34,211,230,.12);
+    outline:none;
+  }
+  .side .profile-link .avatar{
+    width:44px;height:44px;font-size:14px;
+    background:linear-gradient(135deg,rgba(34,211,230,.22),#173039);
+    border-color:rgba(34,211,230,.35);
+  }
+  .side .profile-copy{min-width:0;flex:1}
+  .side .profile-label{
+    display:block;margin-bottom:3px;color:var(--cyan);font-size:10px;
+    font-weight:600;letter-spacing:.8px;text-transform:uppercase;
+  }
+  .side .profile-name{
+    display:block;overflow:hidden;color:var(--text);font-size:13px;
+    font-weight:600;text-overflow:ellipsis;white-space:nowrap;
+  }
+  .side .profile-meta{
+    display:block;margin-top:3px;overflow:hidden;color:var(--muted);
+    font-size:10px;text-overflow:ellipsis;white-space:nowrap;
+  }
+  .side .profile-arrow{color:var(--muted);font-size:18px;transition:color .2s,transform .2s}
+  .side .profile-link:hover .profile-arrow{color:var(--cyan);transform:translateX(2px)}
+
+  /* ---------- Main ---------- */
+  .main{
+    padding:20px 24px;overflow:auto;
+    display:grid;
+    grid-template-columns:1fr 1fr 250px;
+    grid-template-rows:auto auto 1fr;
+    gap:16px;
+    align-content:start;
+  }
+  .main h1{
+    grid-column:1 / -1;
+    font-size:26px;font-weight:400;color:#9db3ba;
+  }
+  .card{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:14px 16px;
+  }
+  .card h4{
+    font-size:14px;font-weight:500;
+    display:flex;justify-content:space-between;align-items:center;
+    margin-bottom:8px;
+  }
+  .legend{font-size:11px;color:var(--muted)}
+  .legend::before{
+    content:"";display:inline-block;width:7px;height:7px;border-radius:50%;
+    background:var(--cyan);margin-right:6px;
+  }
+  .legend.red::before{background:var(--red)}
+  .legend.yellow::before{background:var(--orange)}
+  .chart{width:100%;height:130px;display:block}
+
+  /* Metric summary */
+  .metrics{
+    grid-column:3;grid-row:2 / span 2;
+    border:2px solid var(--cyan);
+    box-shadow:0 0 20px rgba(34,211,230,.35), inset 0 0 20px rgba(34,211,230,.08);
+    display:flex;flex-direction:column;gap:6px;
+  }
+  .metrics > h5{font-size:12px;letter-spacing:.5px;font-weight:500;margin-bottom:4px}
+  .metrics .chart{height:78px}
+  .metrics hr{border:none;border-top:1px solid var(--line);margin:4px 0}
+
+  /* Patient list */
+  .patients{grid-column:1 / 3}
+  .patients .head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+  .patients .head h4{margin:0}
+  .list-controls{display:flex;align-items:center;justify-content:flex-end;gap:7px;flex-wrap:wrap}
+  .list-controls select,.list-controls input{
+    max-width:145px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;
+    background:var(--panel);color:var(--text);font-size:11px;
+  }
+  .list-actions{display:flex;gap:6px}
+  .list-actions button{
+    padding:6px 8px;border:1px solid var(--line);border-radius:6px;
+    background:transparent;color:var(--cyan);cursor:pointer;font-size:11px;
+  }
+  .list-actions button:hover{border-color:var(--cyan);background:var(--cyan-soft)}
+  .upcoming-dashboard{grid-column:1 / 3}
+  .upcoming-dashboard .head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+  .upcoming-dashboard h4{margin:0}
+  .upcoming-items{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+  .upcoming-appointment{
+    padding:10px;border:1px solid var(--line);border-radius:7px;background:var(--panel);
+    min-width:0;
+  }
+  .upcoming-appointment strong{display:block;color:var(--cyan);font-size:12px}
+  .upcoming-appointment span{display:block;margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}
+  .upcoming-appointment small{display:block;margin-top:4px;color:var(--muted);font-size:10px}
+  .dashboard-empty{color:var(--muted);font-size:12px;padding:8px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{
+    text-align:left;color:var(--muted);font-weight:500;font-size:10px;
+    letter-spacing:.5px;text-transform:uppercase;padding:6px 8px;
+  }
+  td{padding:7px 8px;border-top:1px solid var(--line);vertical-align:middle}
+  tr:hover td{background:rgba(34,211,230,.04)}
+  .pname{display:flex;align-items:center;gap:10px}
+  .patient-link{color:var(--text);text-decoration:none}
+  .patient-link:hover{color:var(--cyan);text-decoration:underline}
+  .badge{
+    display:inline-block;min-width:44px;text-align:center;
+    padding:3px 8px;border-radius:4px;font-weight:600;color:#fff;font-size:12px;
+  }
+  .b-green{background:var(--green)}
+  .b-red{background:var(--red)}
+  .b-orange{background:var(--orange);color:#1a1200}
+  .neuro{font-size:16px}
+  .neuro.ok{color:var(--green)}
+  .neuro.warn{color:var(--orange)}
+  .neuro.bad{color:var(--cyan)}
+
+  /* Heatmap feet */
+  .feet{display:flex;gap:4px}
+  .foot{
+    width:16px;height:34px;border-radius:50% 50% 45% 45% / 35% 35% 65% 65%;
+    background:
+      radial-gradient(circle at 50% 78%, #e8d44d 0 18%, transparent 19%),
+      radial-gradient(circle at 50% 28%, #e06a3a 0 20%, transparent 21%),
+      radial-gradient(ellipse at 50% 55%, #3fae49 0 45%, #1e7bd0 80%);
+    box-shadow:0 0 6px rgba(34,211,230,.35);
+  }
+  .foot.r{transform:scaleX(-1)}
+
+  @media (max-width:1100px){
+    .main{grid-template-columns:1fr 1fr}
+    .metrics{grid-column:1 / -1;grid-row:auto}
+    .patients{grid-column:1 / -1}
+  }
+  @media (max-width:760px){
+    .app{grid-template-columns:56px 1fr}
+    .side{display:none}
+    .main{grid-template-columns:1fr}
+    .search{display:none}
+    .patients .head{align-items:stretch;flex-direction:column}
+    .list-controls{justify-content:flex-start}
+    .list-controls select,.list-controls input{max-width:none;flex:1;min-width:100px}
+    .upcoming-items{grid-template-columns:1fr}
+  }
+  @media print{
+    .topbar,.icons,.side,.patients .head input,.list-controls,.list-actions{display:none!important}
+    body{height:auto;overflow:visible;background:#fff;color:#000}
+    .app{display:block;height:auto}
+    .main{display:block;overflow:visible;padding:0}
+    .card{break-inside:avoid;background:#fff;color:#000;border:1px solid #aaa;box-shadow:none;margin:10px 0}
+    .patients{width:100%}
+    th,td{color:#000;border-color:#aaa}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Topbar -->
+  <header class="topbar">
+    <div class="burger">☰</div>
+    <div class="brand">👣 <b>NeuroStep IA</b> <span>- Medical Portal</span></div>
+    <div class="spacer"></div>
+    <div class="user">
+      <div class="avatar">JN</div>
+      <div>Jame Nenik<small>Logged in</small></div>
+    </div>
+  </header>
+
+  <!-- Icon sidebar -->
+  <nav class="icons">
+    <button class="active" title="Inicio">⌂</button>
+    <a class="icon-link" href="barrapacientes.html" title="Pacientes" aria-label="Pacientes">👤</a>
+    <a class="icon-link" href="agenda.html" title="Agenda" aria-label="Agenda">📅</a>
+    <a class="icon-link" href="analisis.html" title="Análisis" aria-label="Análisis">✺</a>
+    <button title="Salir" aria-label="Cerrar sesión">⏻</button>
+  </nav>
+
+  <!-- Left panel -->
+  <aside class="side">
+    <div class="logo">👣</div>
+    <h2>NeuroStep IA</h2>
+    <div class="sub">Medical Portal</div>
+    <h3>Welcome to NeuroStep IA</h3>
+    <p>Welcome to NeuroStep IA, Jame. Your patient list and key data are ready.</p>
+    <div class="patient-summary" aria-label="Resumen de pacientes">
+      <div class="summary-item total"><strong id="totalPatients">0</strong><span>Total de pacientes</span></div>
+      <div class="summary-item urgent"><strong id="urgentPatients">0</strong><span>Revisión urgente</span></div>
+      <div class="summary-item soon"><strong id="soonPatients">0</strong><span>Revisión próxima</span></div>
+      <div class="summary-item routine"><strong id="routinePatients">0</strong><span>Seguimiento habitual</span></div>
+    </div>
+    <div class="bottom">
+      <a class="profile-link" href="perfil.html" aria-label="Ver perfil del doctor Jame Nenik">
+        <div class="avatar">JN</div>
+        <span class="profile-copy">
+          <span class="profile-label">Perfil del doctor</span>
+          <span class="profile-name">Jame Nenik</span>
+          <span class="profile-meta">ID: 012-001 · Specialist</span>
+        </span>
+        <span class="profile-arrow" aria-hidden="true">›</span>
+      </a>
+    </div>
+  </aside>
+
+  <!-- Main content -->
+  <main class="main">
+    <h1>Welcome back, Jame – Medical Portal Dashboard</h1>
+
+    <section class="card">
+      <h4>Patient Throughput <span class="legend">Total</span></h4>
+      <svg class="chart" data-series="30,45,50,90,95,85,80,100,120,140" data-color="#22d3e6"></svg>
+    </section>
+
+    <section class="card">
+      <h4>Average Risk Index <span class="legend red">High Time</span></h4>
+      <svg class="chart" data-series="40,60,70,90,130,110,95,115,140" data-color="#22d3e6"
+           data-series2="100,105,95,90,85,80,75,65,60" data-color2="#e04848"></svg>
+    </section>
+
+    <section class="card metrics">
+      <h5>METRIC SUMMARY</h5>
+      <h4>Total Patient Throughput <span class="legend">Total</span></h4>
+      <svg class="chart" data-series="20,40,35,80,85,80,100,130" data-color="#22d3e6"></svg>
+      <hr>
+      <h4>Average Risk Index <span class="legend red">High time</span></h4>
+      <svg class="chart" data-series="30,50,70,90,120,100,110,140" data-color="#22d3e6"
+           data-series2="80,90,85,70,75,65,60,55" data-color2="#e04848"></svg>
+      <hr>
+      <h4>Pressure Metrics <span class="legend yellow">By time</span></h4>
+      <svg class="chart" data-series="40,50,60,70,120,90,100,60" data-color="#22d3e6"></svg>
+    </section>
+
+    <section class="card upcoming-dashboard">
+      <div class="head">
+        <h4>PRÓXIMAS CITAS</h4>
+        <a class="patient-link" href="agenda.html">Ver agenda →</a>
+      </div>
+      <div class="upcoming-items" id="dashboardAppointments"></div>
+    </section>
+
+    <section class="card patients">
+      <div class="head">
+        <h4>REVISIÓN PRIORITARIA</h4>
+        <div class="list-controls">
+          <input class="search" id="prioritySearch" type="search" placeholder="Filtrar lista" aria-label="Filtrar pacientes prioritarios" style="width:150px">
+          <select id="priorityFilter" aria-label="Filtrar por prioridad">
+            <option value="">Todas las prioridades</option><option value="0">Urgente</option>
+            <option value="1">Próxima</option><option value="2">Habitual</option>
+          </select>
+          <select id="patientSort" aria-label="Ordenar pacientes">
+            <option value="priority">Prioridad</option><option value="name">Nombre</option>
+            <option value="risk">Riesgo: mayor a menor</option><option value="date">Revisión más antigua</option>
+          </select>
+          <div class="list-actions">
+            <button id="exportPriorityPatients" type="button">CSV</button>
+          </div>
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Patient name</th><th>Review priority</th><th>Risk index</th>
+            <th>Neuropathy status</th><th>Heatmap thumbnail</th><th>Last analysis date</th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </section>
+  </main>
+</div>
+
+<script>
+/* ---------- Datos de pacientes ---------- */
+(async () => {
+try {
+  const doctor = await window.supabaseApp.requireDoctor();
+  if (!doctor) return;
+  await loadPatientsFromSupabase();
+} catch (error) {
+  console.error("No se pudieron cargar los pacientes desde Supabase:", error);
+  document.getElementById("rows").innerHTML =
+    '<tr><td colspan="6" style="padding:18px 12px;text-align:center;color:var(--muted)">No se pudieron cargar los datos. Verifica la conexión y la configuración de Supabase.</td></tr>';
+  return;
+}
+const patients = Array.isArray(PATIENTS) ? [...PATIENTS].sort(comparePatientsForReview) : [];
+const icon = {ok:"🏃", warn:"⚠", bad:"🚶"};
+const rows = document.getElementById("rows");
+const priorityLabels = ["Urgente", "Próxima", "Habitual"];
+const prioritySearch = document.getElementById("prioritySearch");
+const priorityFilter = document.getElementById("priorityFilter");
+const patientSort = document.getElementById("patientSort");
+const patientCounts = [0, 0, 0];
+patients.forEach(patient => patientCounts[patientReviewPriority(patient)]++);
+document.getElementById("totalPatients").textContent = patients.length;
+document.getElementById("urgentPatients").textContent = patientCounts[0];
+document.getElementById("soonPatients").textContent = patientCounts[1];
+document.getElementById("routinePatients").textContent = patientCounts[2];
+
+function renderDashboardPatients(){
+  if (!rows) {
+    console.warn("No se encontró el contenedor de pacientes.");
+    return;
+  }
+  const query = prioritySearch.value.trim().toLocaleLowerCase();
+  const filteredPatients = patients.filter(patient =>
+    (priorityFilter.value === "" || patientReviewPriority(patient) === Number(priorityFilter.value)) &&
+    [patient.fullName, patient.name, patient.id, patient.neuroLabel, patient.lastDate, patient.risk, priorityLabels[patientReviewPriority(patient)]]
+      .filter(Boolean).join(" ").toLocaleLowerCase().includes(query)
+  );
+  const sortModes = {
+    priority:(a,b) => comparePatientsForReview(a,b),
+    name:(a,b) => String(a.fullName || a.name || "").localeCompare(String(b.fullName || b.name || ""), "es"),
+    risk:(a,b) => (Number(b.risk) || 0) - (Number(a.risk) || 0),
+    date:(a,b) => patientLastReviewTime(a) - patientLastReviewTime(b)
+  };
+  filteredPatients.sort(sortModes[patientSort.value] || sortModes.priority);
+
+  if (!filteredPatients.length) {
+    const message = query ? "No se encontraron pacientes con esa búsqueda." : "No hay pacientes registrados.";
+    rows.innerHTML = `<tr><td colspan="6" style="padding:18px 12px;text-align:center;color:var(--muted)">${message}</td></tr>`;
+    return;
+  }
+
+  rows.innerHTML = filteredPatients.map(p => {
+    const name = p.name || p.fullName || "Paciente";
+    const initials = (name.match(/[A-Z]/g) || []).join("").slice(0,2) || "P";
+    const risk = Number(p.risk ?? 0);
+    const color = p.color || (risk < 4 ? "green" : risk <= 7 ? "orange" : "red");
+    const priority = patientReviewPriority(p);
+    const neuro = p.neuro || "ok";
+    const date = p.lastDate || p.date || "Sin registro";
+    const patientUrl = `pacientes.html?id=${encodeURIComponent(p.id)}`;
+
+    return `
+    <tr>
+      <td><div class="pname"><div class="avatar">${initials}</div><a class="patient-link" href="${patientUrl}">${name}</a></div></td>
+      <td>${priorityLabels[priority]}</td>
+      <td><span class="badge b-${color}">${risk}</span></td>
+      <td><span class="neuro ${neuro}">${icon[neuro] || "•"}</span></td>
+      <td><div class="feet"><div class="foot"></div><div class="foot r"></div></div></td>
+      <td>${date}</td>
+    </tr>`;
+  }).join("");
+}
+prioritySearch.addEventListener("input", renderDashboardPatients);
+priorityFilter.addEventListener("change", renderDashboardPatients);
+patientSort.addEventListener("change", renderDashboardPatients);
+renderDashboardPatients();
+
+async function loadDashboardAppointments(){
+  const target = document.getElementById("dashboardAppointments");
+  let appointments;
+  try {
+    appointments = await window.supabaseApp.getAppointments();
+  } catch (error) {
+    console.error("No se pudieron cargar las citas desde Supabase:", error);
+    target.innerHTML = '<p class="dashboard-empty">No se pudieron cargar las citas. Revisa el almacenamiento de la agenda.</p>';
+    return;
+  }
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
+  const time = `${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}`;
+  const upcoming = appointments
+    .filter(item => item && (item.date > today || (item.date === today && String(item.time) >= time)))
+    .sort((a,b) => `${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`))
+    .slice(0,3);
+  if (!upcoming.length) {
+    target.innerHTML = '<p class="dashboard-empty">No hay citas próximas programadas.</p>';
+    return;
+  }
+  target.innerHTML = upcoming.map(item => {
+    const patient = patients.find(person => person.id === item.patientId);
+    const name = patient ? patient.fullName || patient.name : "Cita sin paciente";
+    return `<div class="upcoming-appointment">
+      <strong>${item.date} · ${item.time}</strong><span>${esc(name)}</span>
+      <small>${esc(item.reason || "Consulta programada")}</small>
+    </div>`;
+  }).join("");
+}
+await loadDashboardAppointments();
+
+document.getElementById("exportPriorityPatients").addEventListener("click", () => {
+  const query = prioritySearch.value.trim().toLocaleLowerCase();
+  const filtered = patients.filter(patient =>
+    (priorityFilter.value === "" || patientReviewPriority(patient) === Number(priorityFilter.value)) &&
+    [patient.fullName, patient.name, patient.id, patient.neuroLabel, patient.lastDate, patient.risk, priorityLabels[patientReviewPriority(patient)]]
+      .filter(Boolean).join(" ").toLocaleLowerCase().includes(query)
+  );
+  downloadCsv("pacientes-prioritarios.csv",
+    ["Paciente","ID","Prioridad","Riesgo","Neuropatía","Último análisis"],
+    filtered.map(patient => [
+      patient.fullName || patient.name || "Paciente", patient.id || "",
+      priorityLabels[patientReviewPriority(patient)], patient.risk,
+      patient.neuroLabel || patient.neuro, patient.lastDate || "Sin registro"
+    ]));
+});
+})();
+
+/* ---------- Gráficas SVG (sin librerías) ---------- */
+const NS = "http://www.w3.org/2000/svg";
+function path(vals, w, h, max){
+  const step = w / (vals.length - 1);
+  return vals.map((v,i) => `${i?"L":"M"}${(i*step).toFixed(1)},${(h - (v/max)*h).toFixed(1)}`).join(" ");
+}
+function draw(svg){
+  const W = 300, H = 100, max = 160;
+  svg.setAttribute("viewBox", `0 0 ${W} ${H+16}`);
+  svg.setAttribute("preserveAspectRatio", "none");
+  const s1 = svg.dataset.series.split(",").map(Number);
+  const c1 = svg.dataset.color || "#22d3e6";
+  const id = "g" + Math.random().toString(36).slice(2,7);
+
+  let html = `<defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="${c1}" stop-opacity=".45"/>
+      <stop offset="1" stop-color="${c1}" stop-opacity="0"/></linearGradient></defs>`;
+  [0,40,80,120,160].forEach(g => {
+    const y = H - (g/max)*H;
+    html += `<line x1="0" x2="${W}" y1="${y}" y2="${y}" stroke="#17323a" stroke-width=".6"/>`;
+  });
+  const d1 = path(s1, W, H, max);
+  html += `<path d="${d1} L${W},${H} L0,${H} Z" fill="url(#${id})"/>`;
+  html += `<path d="${d1}" fill="none" stroke="${c1}" stroke-width="1.8" vector-effect="non-scaling-stroke"/>`;
+
+  if(svg.dataset.series2){
+    const s2 = svg.dataset.series2.split(",").map(Number);
+    html += `<path d="${path(s2, W, H, max)}" fill="none" stroke="${svg.dataset.color2}" stroke-width="1.5" vector-effect="non-scaling-stroke"/>`;
+  }
+  svg.innerHTML = html;
+}
+document.querySelectorAll("svg.chart").forEach(draw);
+
+
+
+
+</script>
+</body>
+</html>

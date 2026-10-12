@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pacientes - NeuroStep IA</title>
+<script src="supabase-connection.js"></script>
+<script src="data.js"></script>
+<style>
+  :root{
+    --bg:#0a1114; --panel:#0e181c; --card:#101c21; --line:#17323a;
+    --cyan:#22d3e6; --cyan-soft:rgba(34,211,230,.15);
+    --text:#e6f1f3; --muted:#7f98a0;
+    --green:#3fae49; --red:#e04848; --orange:#f0a020;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+  .topbar{
+    display:flex;align-items:center;gap:16px;padding:0 24px;height:64px;
+    background:var(--panel);border-bottom:1px solid var(--line);
+  }
+  .brand{font-size:20px}.brand b{color:var(--cyan);font-weight:600}.brand span{color:var(--muted)}
+  .spacer{flex:1}
+  .user{display:flex;align-items:center;gap:10px;font-size:14px}
+  .user small{display:block;color:var(--muted);font-size:11px}
+  .avatar{
+    width:36px;height:36px;border-radius:50%;flex-shrink:0;
+    background:linear-gradient(135deg,#2a4a55,#173039);border:1px solid var(--line);
+    display:grid;place-items:center;font-size:12px;font-weight:600;color:var(--cyan);
+  }
+  .logout,.back{
+    padding:8px 12px;border:1px solid var(--line);border-radius:6px;
+    background:transparent;color:var(--cyan);text-decoration:none;cursor:pointer;font-size:13px;
+  }
+  .logout:hover,.back:hover{border-color:var(--cyan);background:var(--cyan-soft)}
+  main{max-width:1200px;margin:0 auto;padding:28px 24px}
+  .heading{display:flex;justify-content:space-between;align-items:end;gap:16px;margin:20px 0}
+  h1{font-size:26px;font-weight:400}
+  .sub{color:var(--muted);font-size:13px;margin-top:6px}
+  .heading-actions{display:flex;align-items:center;gap:10px}
+  .table-tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .search{
+    width:min(280px,100%);padding:10px 12px;background:var(--card);
+    border:1px solid var(--line);border-radius:6px;color:var(--text);outline:none;
+  }
+  .search:focus{border-color:var(--cyan)}
+  .primary,.secondary{
+    padding:10px 14px;border:1px solid var(--cyan);border-radius:6px;
+    cursor:pointer;font:inherit;font-size:13px;
+  }
+  .primary{background:var(--cyan);color:#04181c;font-weight:600}
+  .primary:hover{filter:brightness(1.08)}
+  .secondary{background:transparent;color:var(--cyan)}
+  .secondary:hover{background:var(--cyan-soft)}
+  .tool-select{
+    padding:10px 11px;border:1px solid var(--line);border-radius:6px;
+    background:var(--card);color:var(--text);font:inherit;font-size:13px;
+  }
+  .print-only{display:none}
+  .card{overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px}
+  .form-card{margin-bottom:16px}
+  .form-card h2{font-size:16px;font-weight:500;margin-bottom:6px}
+  .form-help{color:var(--muted);font-size:12px;margin-bottom:16px}
+  .patient-form{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+  .field{display:grid;gap:6px}
+  .field label{color:var(--muted);font-size:12px}
+  .field input,.field select,.field textarea{
+    width:100%;min-width:0;padding:10px 11px;border:1px solid var(--line);
+    border-radius:6px;background:var(--panel);color:var(--text);font:inherit;font-size:13px;
+  }
+  .field input:focus,.field select:focus,.field textarea:focus{outline:2px solid var(--cyan);outline-offset:1px}
+  .field textarea{min-height:76px;resize:vertical}
+  .field.full{grid-column:1/-1}
+  .form-actions{grid-column:1/-1;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .form-message{color:var(--muted);font-size:12px}
+  .form-message.error{color:#ff9a9a}
+  .form-message.success{color:var(--green)}
+  .patient-actions{display:flex;gap:6px;white-space:nowrap}
+  .row-button{padding:5px 8px;border:1px solid var(--line);border-radius:5px;background:transparent;color:var(--cyan);cursor:pointer;font-size:11px}
+  .row-button:hover{border-color:var(--cyan);background:var(--cyan-soft)}
+  .row-button.delete{color:#ff9a9a}
+  .row-button.delete:hover{border-color:var(--red)}
+  table{width:100%;min-width:760px;border-collapse:collapse;font-size:13px}
+  th{
+    text-align:left;color:var(--muted);font-weight:500;font-size:10px;
+    letter-spacing:.5px;text-transform:uppercase;padding:8px;
+  }
+  td{padding:10px 8px;border-top:1px solid var(--line);vertical-align:middle}
+  tbody tr:hover td{background:rgba(34,211,230,.04)}
+  .person{display:flex;align-items:center;gap:10px;min-width:180px}
+  .patient-link{color:var(--text);text-decoration:none}
+  .patient-link:hover{color:var(--cyan);text-decoration:underline}
+  .badge{display:inline-block;min-width:42px;padding:4px 8px;border-radius:4px;text-align:center;font-weight:600;color:#fff}
+  .b-green{background:var(--green)}.b-orange{background:var(--orange);color:#1a1200}.b-red{background:var(--red)}
+  .priority{font-weight:600}.priority-0{color:#ff7373}.priority-1{color:var(--orange)}.priority-2{color:var(--green)}
+  .neuro{font-size:15px}
+  .empty{padding:36px 16px;text-align:center;color:var(--muted)}
+  .count{color:var(--muted);font-size:12px;margin:12px 2px 0}
+  @media(max-width:600px){
+    .topbar{padding:0 14px}.brand span,.user>div:last-child{display:none}
+    main{padding:18px 14px}.heading{align-items:stretch;flex-direction:column}
+    .heading-actions{align-items:stretch;flex-direction:column}
+    .table-tools{align-items:stretch;flex-direction:column}
+    .table-tools .search,.table-tools select,.table-tools button{width:100%;max-width:none}
+    .patient-form{grid-template-columns:1fr}
+    .field.full,.form-actions{grid-column:auto}
+  }
+  @media print{
+    body{background:#fff;color:#000}
+    .topbar,.heading-actions,.form-card,.patient-actions,.count{display:none!important}
+    main{max-width:none;padding:0}
+    .heading{margin:0 0 14px}
+    .card{overflow:visible;background:#fff;color:#000;border:1px solid #aaa}
+    th,td{color:#000;border-color:#aaa}
+    table{min-width:0;font-size:10px}
+    .badge{color:#000;border:1px solid #777;background:#fff}
+    .patient-link{color:#000}
+  }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <a class="back" href="index.html">← Inicio</a>
+  <div class="brand">👣 <b>NeuroStep IA</b> <span>- Medical Portal</span></div>
+  <div class="spacer"></div>
+  <div class="user">
+    <div class="avatar" id="docAvatar">--</div>
+    <div><span id="docName">Doctor</span><small id="docRole"></small></div>
+  </div>
+  <button class="logout" id="logout" type="button">Salir</button>
+</header>
+<main>
+  <div class="heading">
+    <div>
+      <h1>Pacientes</h1>
+      <p class="sub">Lista completa de los pacientes registrados en el sistema.</p>
+    </div>
+    <div class="heading-actions">
+      <div class="table-tools">
+        <input class="search" id="patientSearch" type="search" placeholder="Buscar por nombre o ID" aria-label="Buscar pacientes">
+        <select class="tool-select" id="priorityFilter" aria-label="Filtrar por prioridad">
+          <option value="">Todas las prioridades</option><option value="0">Urgente</option>
+          <option value="1">Próxima</option><option value="2">Habitual</option>
+        </select>
+        <select class="tool-select" id="patientSort" aria-label="Ordenar pacientes">
+          <option value="priority">Prioridad</option><option value="name">Nombre</option>
+          <option value="risk">Riesgo: mayor a menor</option><option value="date">Revisión más antigua</option>
+        </select>
+        <button class="secondary" id="exportPatients" type="button">Exportar CSV</button>
+      </div>
+      <button class="primary" id="togglePatientForm" type="button" aria-expanded="false" aria-controls="patientFormCard">Agregar paciente</button>
+    </div>
+  </div>
+  <section class="card form-card" id="patientFormCard" aria-labelledby="formTitle" hidden>
+    <h2 id="formTitle">Agregar paciente</h2>
+    <p class="form-help">Registra los datos personales y la evaluación clínica inicial.</p>
+    <form class="patient-form" id="patientForm">
+      <div class="field">
+        <label for="fullName">Nombre completo *</label>
+        <input id="fullName" name="fullName" type="text" maxlength="120" autocomplete="name" required>
+      </div>
+      <div class="field">
+        <label for="dob">Fecha de nacimiento *</label>
+        <input id="dob" name="dob" type="date" required>
+      </div>
+      <div class="field">
+        <label for="sex">Sexo *</label>
+        <select id="sex" name="sex" required>
+          <option value="">Selecciona</option><option>Femenino</option><option>Masculino</option><option>Otro</option><option>No especificado</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="phone">Teléfono</label>
+        <input id="phone" name="phone" type="tel" maxlength="30" autocomplete="tel">
+      </div>
+      <div class="field">
+        <label for="diabetes">Diabetes *</label>
+        <select id="diabetes" name="diabetes" required>
+          <option value="">Selecciona</option><option>Tipo 1</option><option>Tipo 2</option><option>Gestacional</option><option>No especificado</option><option>Ninguna</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="assessmentDate">Fecha de evaluación *</label>
+        <input id="assessmentDate" name="date" type="date" required>
+      </div>
+      <div class="field">
+        <label for="weight">Peso (kg) *</label>
+        <input id="weight" name="weight" type="number" min="1" max="500" step="0.1" required>
+      </div>
+      <div class="field">
+        <label for="height">Estatura (m) *</label>
+        <input id="height" name="height" type="number" min="0.5" max="2.7" step="0.01" required>
+      </div>
+      <div class="field">
+        <label for="risk">Índice de riesgo (0–10) *</label>
+        <input id="risk" name="risk" type="number" min="0" max="10" step="1" required>
+      </div>
+      <div class="field">
+        <label for="neuro">Estado de neuropatía *</label>
+        <select id="neuro" name="neuro" required>
+          <option value="">Selecciona</option>
+          <option value="none">Sin neuropatía</option><option value="mild">Leve</option>
+          <option value="moderate">Moderada</option><option value="severe">Severa</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="monofilamento">Monofilamento</label>
+        <input id="monofilamento" name="monofilamento" type="text" maxlength="120">
+      </div>
+      <div class="field">
+        <label for="vibracion">Vibración</label>
+        <input id="vibracion" name="vibracion" type="text" maxlength="120">
+      </div>
+      <div class="field">
+        <label for="reflejos">Reflejos</label>
+        <input id="reflejos" name="reflejos" type="text" maxlength="120">
+      </div>
+      <div class="field full">
+        <label for="notes">Observaciones iniciales</label>
+        <textarea id="notes" name="notes" maxlength="2000" placeholder="Notas clínicas del primer registro..."></textarea>
+      </div>
+      <div class="form-actions">
+        <button class="primary" type="submit">Guardar paciente</button>
+        <button class="secondary" id="cancelPatientForm" type="button">Cancelar</button>
+        <span class="form-message" id="formMessage" role="status" aria-live="polite"></span>
+      </div>
+    </form>
+  </section>
+  <section class="card form-card" id="editPatientCard" aria-labelledby="editFormTitle" hidden>
+    <h2 id="editFormTitle">Editar paciente</h2>
+    <p class="form-help">Edita los datos personales. El historial clínico y las observaciones se conservan.</p>
+    <form class="patient-form" id="editPatientForm">
+      <input type="hidden" id="editPatientId">
+      <div class="field">
+        <label for="editFullName">Nombre completo *</label>
+        <input id="editFullName" type="text" maxlength="120" required>
+      </div>
+      <div class="field">
+        <label for="editDob">Fecha de nacimiento *</label>
+        <input id="editDob" type="date" required>
+      </div>
+      <div class="field">
+        <label for="editSex">Sexo *</label>
+        <select id="editSex" required>
+          <option>Femenino</option><option>Masculino</option><option>Otro</option><option>No especificado</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="editPhone">Teléfono</label>
+        <input id="editPhone" type="tel" maxlength="30">
+      </div>
+      <div class="field">
+        <label for="editDiabetes">Diabetes *</label>
+        <select id="editDiabetes" required>
+          <option>Tipo 1</option><option>Tipo 2</option><option>Gestacional</option><option>No especificado</option><option>Ninguna</option>
+        </select>
+      </div>
+      <div class="form-actions">
+        <button class="primary" type="submit">Guardar cambios</button>
+        <button class="secondary" id="cancelEditPatient" type="button">Cancelar</button>
+        <span class="form-message" id="editMessage" role="status" aria-live="polite"></span>
+      </div>
+    </form>
+  </section>
+  <section class="card" aria-label="Lista de pacientes">
+    <table>
+      <thead><tr>
+        <th>Paciente</th><th>Edad</th><th>Sexo</th><th>Diabetes</th>
+        <th>Prioridad de revisión</th><th>Riesgo</th><th>Neuropatía</th><th>Último análisis</th><th>Acciones</th>
+      </tr></thead>
+      <tbody id="patientRows"></tbody>
+    </table>
+    <p class="empty" id="emptyMessage" hidden></p>
+  </section>
+  <p class="count" id="patientCount" aria-live="polite"></p>
+</main>
+<script>
+(async () => {
+let doctor;
+try {
+  doctor = await window.supabaseApp.requireDoctor();
+  if (!doctor) return;
+  await loadPatientsFromSupabase();
+} catch (error) {
+  console.error("No se pudieron cargar los pacientes desde Supabase:", error);
+  document.getElementById("emptyMessage").hidden = false;
+  document.getElementById("emptyMessage").textContent =
+    "No se pudieron cargar los datos. Verifica la conexión y la configuración de Supabase.";
+  return;
+}
+document.getElementById("docName").textContent = doctor.name || "Doctor";
+document.getElementById("docRole").textContent = doctor.role || "";
+document.getElementById("docAvatar").textContent =
+  (doctor.name || "").split(/\s+/).filter(Boolean).map(part => part[0]).join("").slice(0, 2).toUpperCase() || "--";
+
+document.getElementById("logout").addEventListener("click", async () => {
+  try {
+    await window.supabaseApp.signOut();
+  } catch (error) {
+    console.error("No se pudo cerrar la sesión:", error);
+    alert("No se pudo cerrar la sesión. Inténtalo de nuevo.");
+  }
+});
+
+const priorityLabels = ["Urgente", "Próxima", "Habitual"];
+const neuroLabels = {ok:"Sin neuropatía", warn:"Neuropatía moderada", bad:"Neuropatía severa"};
+const neuroIcons = {ok:"●", warn:"⚠", bad:"●"};
+const patientRows = document.getElementById("patientRows");
+const emptyMessage = document.getElementById("emptyMessage");
+const patientCount = document.getElementById("patientCount");
+const search = document.getElementById("patientSearch");
+const priorityFilter = document.getElementById("priorityFilter");
+const patientSort = document.getElementById("patientSort");
+let patients = Array.isArray(PATIENTS) ? [...PATIENTS].sort(comparePatientsForReview) : [];
+let visiblePatients = [...patients];
+const patientForm = document.getElementById("patientForm");
+const formCard = document.getElementById("patientFormCard");
+const togglePatientForm = document.getElementById("togglePatientForm");
+const formMessage = document.getElementById("formMessage");
+const editPatientCard = document.getElementById("editPatientCard");
+const editPatientForm = document.getElementById("editPatientForm");
+const editMessage = document.getElementById("editMessage");
+
+function displayText(value){
+  const holder = document.createElement("textarea");
+  holder.innerHTML = String(value ?? "");
+  return esc(holder.value);
+}
+
+function renderPatients(){
+  const query = search.value.trim().toLocaleLowerCase();
+  const filtered = patients.filter(patient =>
+    (priorityFilter.value === "" || patientReviewPriority(patient) === Number(priorityFilter.value)) &&
+    `${patient.fullName || patient.name || ""} ${patient.id || ""}`.toLocaleLowerCase().includes(query)
+  );
+  const sortModes = {
+    priority:(a,b) => comparePatientsForReview(a,b),
+    name:(a,b) => String(a.fullName || a.name || "").localeCompare(String(b.fullName || b.name || ""), "es"),
+    risk:(a,b) => (Number(b.risk) || 0) - (Number(a.risk) || 0),
+    date:(a,b) => patientLastReviewTime(a) - patientLastReviewTime(b)
+  };
+  filtered.sort(sortModes[patientSort.value] || sortModes.priority);
+  visiblePatients = filtered;
+
+  patientRows.innerHTML = filtered.map(patient => {
+    const name = patient.fullName || patient.name || "Paciente";
+    const priority = patientReviewPriority(patient);
+    const risk = Number(patient.risk) || 0;
+    const color = patient.color || riskColor(risk);
+    const neuro = patient.neuro || "ok";
+    const detailUrl = `pacientes.html?id=${encodeURIComponent(patient.id || "")}`;
+    const initials = displayText(name).replace(/&amp;|&lt;|&gt;|&quot;|&#39;/g, "").match(/[A-ZÁÉÍÓÚÑ]/gi);
+
+    return `<tr>
+      <td><div class="person"><div class="avatar">${initials ? initials.slice(0, 2).join("").toUpperCase() : "P"}</div><a class="patient-link" href="${detailUrl}">${displayText(name)}</a></div></td>
+      <td>${displayText(patient.age || "—")}</td>
+      <td>${displayText(patient.sex || "—")}</td>
+      <td>${displayText(patient.diabetes || "—")}</td>
+      <td class="priority priority-${priority}">${priorityLabels[priority]}</td>
+      <td><span class="badge b-${color}">${displayText(risk)}</span></td>
+      <td><span class="neuro" title="${displayText(patient.neuroLabel || neuroLabels[neuro] || "Estado no especificado")}">${neuroIcons[neuro] || "•"} ${displayText(patient.neuroLabel || neuroLabels[neuro] || "Sin especificar")}</span></td>
+      <td>${displayText(patient.lastDate || patient.date || "Sin registro")}</td>
+      <td><div class="patient-actions">
+        <button class="row-button" type="button" data-edit-patient="${encodeURIComponent(patient.id)}">Editar</button>
+        <button class="row-button delete" type="button" data-delete-patient="${encodeURIComponent(patient.id)}">Eliminar</button>
+      </div></td>
+    </tr>`;
+  }).join("");
+
+  emptyMessage.hidden = filtered.length > 0;
+  emptyMessage.textContent = patients.length
+    ? "No se encontraron pacientes con esa búsqueda."
+    : "No hay pacientes registrados.";
+  patientCount.textContent = `Mostrando ${filtered.length} de ${patients.length} pacientes`;
+  patientRows.querySelectorAll("[data-edit-patient]").forEach(button =>
+    button.addEventListener("click", () => openPatientEditor(decodeURIComponent(button.dataset.editPatient))));
+  patientRows.querySelectorAll("[data-delete-patient]").forEach(button =>
+    button.addEventListener("click", () => removePatient(decodeURIComponent(button.dataset.deletePatient))));
+}
+
+search.addEventListener("input", renderPatients);
+priorityFilter.addEventListener("change", renderPatients);
+patientSort.addEventListener("change", renderPatients);
+function closePatientForm(){
+  formCard.hidden = true;
+  togglePatientForm.setAttribute("aria-expanded", "false");
+  togglePatientForm.focus();
+}
+
+togglePatientForm.addEventListener("click", () => {
+  formCard.hidden = !formCard.hidden;
+  togglePatientForm.setAttribute("aria-expanded", String(!formCard.hidden));
+  formMessage.textContent = "";
+  formMessage.className = "form-message";
+  if (!formCard.hidden) document.getElementById("fullName").focus();
+});
+
+document.getElementById("cancelPatientForm").addEventListener("click", closePatientForm);
+
+function decodedText(value){
+  const holder = document.createElement("textarea");
+  holder.innerHTML = String(value ?? "");
+  return holder.value;
+}
+
+function openPatientEditor(id){
+  const patient = patients.find(item => item.id === id);
+  if (!patient) return;
+  document.getElementById("editPatientId").value = patient.id;
+  document.getElementById("editFullName").value = decodedText(patient.fullName || patient.name || "");
+  document.getElementById("editDob").value = patientDobForInput(patient);
+  document.getElementById("editDob").max = new Date().toISOString().slice(0, 10);
+  document.getElementById("editSex").value = decodedText(patient.sex || "No especificado");
+  document.getElementById("editPhone").value = decodedText(patient.phone === "—" ? "" : patient.phone);
+  document.getElementById("editDiabetes").value = decodedText(patient.diabetes || "No especificado");
+  editMessage.textContent = "";
+  editMessage.className = "form-message";
+  editPatientCard.hidden = false;
+  formCard.hidden = true;
+  togglePatientForm.setAttribute("aria-expanded", "false");
+  document.getElementById("editFullName").focus();
+  editPatientCard.scrollIntoView({behavior:"smooth", block:"start"});
+}
+
+function closePatientEditor(){
+  editPatientCard.hidden = true;
+  editPatientForm.reset();
+}
+
+async function removePatient(id){
+  const patient = patients.find(item => item.id === id);
+  if (!patient) return;
+  if (!confirm(`¿Eliminar a ${decodedText(patient.fullName || patient.name)}? Esta acción no se puede deshacer. También se eliminarán sus citas y registros clínicos.`)) return;
+
+  try {
+    if (!await deletePatient(id)) throw new Error("No se encontró el paciente.");
+    patients = patients.filter(item => item.id !== id);
+    visiblePatients = patients;
+    renderPatients();
+  } catch (error) {
+    console.error("No se pudo eliminar el paciente en Supabase:", error);
+    alert("No se pudo eliminar el paciente en Supabase. No se modificó la lista; inténtalo de nuevo.");
+  }
+}
+
+editPatientForm.addEventListener("submit", async event => {
+  event.preventDefault();
+  editMessage.textContent = "";
+  editMessage.className = "form-message";
+  try {
+    const updated = await updatePatientDemographics(document.getElementById("editPatientId").value, {
+      fullName: document.getElementById("editFullName").value,
+      dob: document.getElementById("editDob").value,
+      sex: document.getElementById("editSex").value,
+      phone: document.getElementById("editPhone").value,
+      diabetes: document.getElementById("editDiabetes").value
+    });
+    if (!updated) {
+      editMessage.textContent = "Completa el nombre y la fecha de nacimiento.";
+      editMessage.classList.add("error");
+      return;
+    }
+    patients = patients.map(patient => patient.id === updated.id ? updated : patient).sort(comparePatientsForReview);
+    visiblePatients = patients;
+    closePatientEditor();
+    renderPatients();
+  } catch (error) {
+    console.error("No se pudieron actualizar los datos del paciente en Supabase:", error);
+    editMessage.textContent = "No se pudieron guardar los cambios en Supabase. Verifica la conexión e inténtalo de nuevo.";
+    editMessage.classList.add("error");
+  }
+});
+
+document.getElementById("cancelEditPatient").addEventListener("click", closePatientEditor);
+
+patientForm.addEventListener("submit", async event => {
+  event.preventDefault();
+  formMessage.textContent = "";
+  formMessage.className = "form-message";
+  const values = new FormData(patientForm);
+  const notes = String(values.get("notes") || "").trim();
+
+  try {
+    const patient = await addPatient({
+      fullName: values.get("fullName"),
+      dob: values.get("dob"),
+      sex: values.get("sex"),
+      phone: values.get("phone"),
+      diabetes: values.get("diabetes"),
+      weight: values.get("weight"),
+      height: values.get("height"),
+      risk: values.get("risk"),
+      neuro: values.get("neuro"),
+      date: values.get("date"),
+      tests: {
+        monofilamento: values.get("monofilamento"),
+        vibracion: values.get("vibracion"),
+        reflejos: values.get("reflejos")
+      },
+      notes
+    });
+
+    if (!patient) {
+      formMessage.textContent = "Escribe el nombre del paciente para continuar.";
+      formMessage.classList.add("error");
+      return;
+    }
+
+    patients.push(patient);
+    patients.sort(comparePatientsForReview);
+    visiblePatients = patients;
+    patientForm.reset();
+    search.value = "";
+    renderPatients();
+    formMessage.textContent = "Paciente agregado correctamente.";
+    formMessage.classList.add("success");
+    formCard.hidden = true;
+    togglePatientForm.setAttribute("aria-expanded", "false");
+    togglePatientForm.focus();
+  } catch (error) {
+    console.error("No se pudo registrar el paciente en Supabase:", error);
+    formMessage.textContent = "No se pudo guardar el paciente en Supabase. Verifica la conexión e inténtalo de nuevo.";
+    formMessage.classList.add("error");
+  }
+});
+
+renderPatients();
+
+document.getElementById("exportPatients").addEventListener("click", () => {
+  downloadCsv("pacientes.csv",
+    ["Paciente","ID","Edad","Sexo","Diabetes","Prioridad","Riesgo","Neuropatía","Último análisis"],
+    visiblePatients.map(patient => [
+      patient.fullName || patient.name || "Paciente", patient.id || "", patient.age || "",
+      patient.sex || "", patient.diabetes || "",
+      ["Urgente","Próxima","Habitual"][patientReviewPriority(patient)],
+      patient.risk ?? 0, patient.neuroLabel || patient.neuro || "",
+      patient.lastDate || patient.date || "Sin registro"
+    ]));
+});
+})();
+</script>
+</body>
+</html>

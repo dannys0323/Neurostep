@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Iniciar sesión - NeuroSTEP IA</title>
+<style>
+  :root{
+    --bg:#0a1114; --panel:#0e181c; --card:#101c21; --line:#17323a;
+    --cyan:#22d3e6; --text:#e6f1f3; --muted:#7f98a0; --red:#e04848;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:"Segoe UI",Roboto,Arial,sans-serif;
+    background:
+      radial-gradient(circle at 20% 20%, rgba(34,211,230,.12), transparent 40%),
+      radial-gradient(circle at 80% 80%, rgba(34,211,230,.08), transparent 40%),
+      var(--bg);
+    color:var(--text);
+    min-height:100vh;
+    display:grid;place-items:center;padding:20px;
+  }
+  .box{
+    width:100%;max-width:400px;
+    background:var(--panel);
+    border:2px solid rgba(34,211,230,.45);
+    border-radius:12px;
+    box-shadow:0 0 28px rgba(34,211,230,.2);
+    padding:36px 32px;
+  }
+  .logo{text-align:center;font-size:56px;filter:drop-shadow(0 0 10px var(--cyan))}
+  h1{text-align:center;font-size:24px;font-weight:500;margin-top:6px}
+  h1 b{color:var(--cyan);font-weight:600}
+  .sub{text-align:center;color:var(--muted);font-size:13px;margin:4px 0 26px}
+  label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px;letter-spacing:.4px}
+  .field{margin-bottom:18px}
+  input[type=text],input[type=password]{
+    width:100%;padding:11px 14px;
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:8px;
+    color:var(--text);font-size:14px;outline:none;min-width:0;
+    transition:border-color .2s, box-shadow .2s;
+  }
+  input:focus{border-color:var(--cyan);box-shadow:0 0 8px rgba(34,211,230,.35)}
+  .pass{position:relative}
+  .pass button{
+    position:absolute;right:8px;top:50%;transform:translateY(-50%);
+    background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;
+  }
+  .btn{
+    width:100%;padding:12px;border:none;border-radius:8px;cursor:pointer;
+    background:var(--cyan);color:#04181c;font-weight:600;font-size:15px;
+    transition:filter .2s, box-shadow .2s;
+  }
+  .btn:hover{filter:brightness(1.1);box-shadow:0 0 16px rgba(34,211,230,.5)}
+  .btn:disabled{opacity:.6;cursor:wait}
+  .error{
+    display:none;margin-bottom:16px;padding:10px 12px;border-radius:8px;
+    background:rgba(224,72,72,.12);border:1px solid var(--red);
+    color:#ff9a9a;font-size:13px;
+  }
+  .error.show{display:block}
+  .error.success{
+    background:rgba(63,174,73,.12);border-color:#3fae49;color:#9be2a1;
+  }
+  .switch-view{
+    display:block;margin-top:18px;text-align:center;color:var(--cyan);
+    font-size:13px;text-decoration:none;
+  }
+  .switch-view:hover{text-decoration:underline}
+  .foot{text-align:center;color:var(--muted);font-size:11px;margin-top:22px}
+</style>
+</head>
+<body>
+
+<main class="box">
+  <section id="loginPanel">
+    <div class="logo">👣</div>
+    <h1><b>NeuroSTEP IA</b> · Medical Portal</h1>
+    <p class="sub">Acceso para personal médico</p>
+
+    <form id="loginForm" novalidate>
+      <div class="error" id="error" role="alert"></div>
+
+      <div class="field">
+        <label for="user">USUARIO</label>
+        <input type="text" id="user" autocomplete="username" placeholder="Ej. jame.nenik" required autofocus>
+      </div>
+
+      <div class="field pass">
+        <label for="pass">CONTRASEÑA</label>
+        <input type="password" id="pass" autocomplete="current-password" placeholder="••••••••">
+        <button type="button" id="toggle" title="Mostrar/ocultar">👁</button>
+      </div>
+
+      <button class="btn" id="submit" type="submit">Iniciar sesión</button>
+      <a class="switch-view" href="#" id="showRegister">¿Eres doctor? Regístrate</a>
+      <p class="foot">© NeuroSTEP IA · Acceso restringido</p>
+    </form>
+  </section>
+
+  <section id="registerPanel" hidden>
+    <div class="logo">👣</div>
+    <h1><b>Registro médico</b></h1>
+    <p class="sub">Crea tu cuenta para acceder al portal</p>
+
+    <form id="registerForm" novalidate>
+      <div class="error" id="registerError" role="alert"></div>
+
+      <div class="field">
+        <label for="doctorName">NOMBRE COMPLETO</label>
+        <input type="text" id="doctorName" autocomplete="name" placeholder="Ej. Jame Nenik" required>
+      </div>
+
+      <div class="field">
+        <label for="doctorUser">USUARIO</label>
+        <input type="text" id="doctorUser" autocomplete="username" placeholder="Ej. jame.nenik" minlength="3" maxlength="40" pattern="[A-Za-z0-9._-]+" required>
+      </div>
+
+      <div class="field">
+        <label for="doctorId">ID DE DOCTOR</label>
+        <input type="text" id="doctorId" placeholder="Ej. 012-001" required>
+      </div>
+
+      <div class="field">
+        <label for="doctorPass">CONTRASEÑA (MÍNIMO 8 CARACTERES)</label>
+        <input type="password" id="doctorPass" autocomplete="new-password" minlength="8" required>
+      </div>
+
+      <div class="field">
+        <label for="confirmPass">CONFIRMAR CONTRASEÑA</label>
+        <input type="password" id="confirmPass" autocomplete="new-password" required>
+      </div>
+
+      <button class="btn" type="submit">Crear cuenta</button>
+      <a class="switch-view" href="#" id="showLogin">Ya tengo una cuenta · Iniciar sesión</a>
+      <p class="foot">Tu cuenta queda activa al terminar el registro; no requiere verificación.</p>
+    </form>
+  </section>
+</main>
+
+<script src="supabase-connection.js"></script>
+<script>
+const form = document.getElementById("loginForm");
+const errBox = document.getElementById("error");
+const btn = document.getElementById("submit");
+
+function showMessage(element, message, success = false){
+  element.textContent = message;
+  element.classList.toggle("success", success);
+  element.classList.add("show");
+}
+
+function setPanel(panelId){
+  document.getElementById("loginPanel").hidden = panelId !== "loginPanel";
+  document.getElementById("registerPanel").hidden = panelId !== "registerPanel";
+}
+
+document.getElementById("showRegister").addEventListener("click", event => {
+  event.preventDefault();
+  setPanel("registerPanel");
+});
+
+document.getElementById("showLogin").addEventListener("click", event => {
+  event.preventDefault();
+  setPanel("loginPanel");
+});
+
+window.supabaseApp.currentDoctor()
+  .then(doctor => {
+    if (doctor) location.replace("index.html");
+  })
+  .catch(error => showMessage(errBox, `No se pudo validar la sesión: ${error.message}`));
+
+document.getElementById("toggle").onclick = () => {
+  const p = document.getElementById("pass");
+  p.type = p.type === "password" ? "text" : "password";
+};
+
+form.addEventListener("submit", async e => {
+  e.preventDefault();
+  errBox.classList.remove("show");
+
+  const username = document.getElementById("user").value.trim().toLowerCase();
+  const pass = document.getElementById("pass").value;
+
+  if(!username || !pass){ return showMessage(errBox, "Ingresa tu usuario y contraseña."); }
+
+  btn.disabled = true;
+  btn.textContent = "Verificando...";
+  try {
+    await window.supabaseApp.signInDoctor(username, pass);
+    location.href = "index.html";
+  } catch (error) {
+    showMessage(errBox, error.message || "No se pudo iniciar sesión. Verifica tu usuario y contraseña.");
+    btn.disabled = false;
+    btn.textContent = "Iniciar sesión";
+  }
+});
+
+document.getElementById("registerForm").addEventListener("submit", async event => {
+  event.preventDefault();
+  const registerError = document.getElementById("registerError");
+  registerError.classList.remove("show");
+
+  const name = document.getElementById("doctorName").value.trim();
+  const user = document.getElementById("doctorUser").value.trim().toLowerCase();
+  const id = document.getElementById("doctorId").value.trim();
+  const pass = document.getElementById("doctorPass").value;
+  const confirmPass = document.getElementById("confirmPass").value;
+
+  if (!name || !user || !id || !pass || !confirmPass) {
+    return showMessage(registerError, "Completa todos los campos.");
+  }
+  if (!/^[a-z0-9][a-z0-9._-]{2,39}$/.test(user)) {
+    return showMessage(registerError, "El usuario debe tener entre 3 y 40 caracteres: letras, números, punto, guion o guion bajo.");
+  }
+  if (pass.length < 8) {
+    return showMessage(registerError, "La contraseña debe tener al menos 8 caracteres.");
+  }
+  if (pass !== confirmPass) {
+    return showMessage(registerError, "Las contraseñas no coinciden.");
+  }
+
+  const registerButton = document.querySelector("#registerForm button[type=submit]");
+  registerButton.disabled = true;
+  registerButton.textContent = "Creando cuenta...";
+  try {
+    const result = await window.supabaseApp.signUpDoctor({
+      password: pass,
+      fullName: name,
+      username: user,
+      doctorId: id
+    });
+    if (!result.session) throw new Error("La cuenta se creó, pero no se recibió una sesión válida.");
+    location.href = "index.html";
+  } catch (error) {
+    showMessage(registerError, error.message || "No se pudo crear la cuenta. Verifica los datos e inténtalo de nuevo.");
+  } finally {
+    registerButton.disabled = false;
+    registerButton.textContent = "Crear cuenta";
+  }
+});
+</script>
+</body>
+</html>

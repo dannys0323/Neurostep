@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agenda - NeuroStep IA</title>
+<script src="supabase-connection.js"></script>
+<script src="data.js"></script>
+<style>
+  :root{
+    --bg:#0a1114; --panel:#0e181c; --card:#101c21; --line:#17323a;
+    --cyan:#22d3e6; --cyan-soft:rgba(34,211,230,.15);
+    --text:#e6f1f3; --muted:#7f98a0; --red:#e04848; --orange:#f0a020;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{min-height:100vh;background:var(--bg);color:var(--text);font-family:"Segoe UI",Roboto,Arial,sans-serif}
+  .topbar{
+    height:64px;display:flex;align-items:center;gap:14px;padding:0 24px;
+    background:var(--panel);border-bottom:1px solid var(--line);
+  }
+  .brand{font-size:20px}.brand b{color:var(--cyan);font-weight:600}.brand span{color:var(--muted)}
+  .spacer{flex:1}
+  .user{display:flex;align-items:center;gap:10px;font-size:14px}
+  .user small{display:block;color:var(--muted);font-size:11px}
+  .avatar{
+    width:36px;height:36px;flex-shrink:0;border:1px solid var(--line);border-radius:50%;
+    background:linear-gradient(135deg,#2a4a55,#173039);display:grid;place-items:center;
+    color:var(--cyan);font-size:12px;font-weight:600;
+  }
+  .top-link,.logout,.button{
+    padding:9px 12px;border:1px solid var(--line);border-radius:6px;
+    background:transparent;color:var(--cyan);text-decoration:none;cursor:pointer;font:inherit;font-size:13px;
+  }
+  .top-link:hover,.logout:hover,.button:hover{border-color:var(--cyan);background:var(--cyan-soft)}
+  .button.primary{border-color:var(--cyan);background:var(--cyan);color:#04181c;font-weight:600}
+  .button.danger{color:#ff9a9a;border-color:rgba(224,72,72,.5)}
+  main{max-width:1320px;margin:0 auto;padding:26px 24px}
+  .page-head{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:18px}
+  .page-actions{display:flex;align-items:center;gap:8px}
+  .agenda-filters{
+    display:grid;grid-template-columns:minmax(180px,1fr) minmax(140px,.7fr) minmax(140px,.7fr) auto auto;
+    align-items:end;gap:9px;margin-bottom:14px;
+  }
+  .agenda-filters label{display:grid;gap:5px;color:var(--muted);font-size:11px}
+  .agenda-filters select,.agenda-filters input{
+    min-width:0;width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:6px;
+    background:var(--panel);color:var(--text);font:inherit;font-size:12px;
+  }
+  .filter-message{grid-column:1/-1;min-height:15px;color:#ff9a9a;font-size:11px}
+  h1{font-size:26px;font-weight:400}
+  .intro{margin-top:6px;color:var(--muted);font-size:13px}
+  .layout{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(300px,.9fr);gap:16px;align-items:start}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:16px}
+  .calendar-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
+  .calendar-head h2{font-size:18px;font-weight:500;text-transform:capitalize}
+  .month-nav{display:flex;align-items:center;gap:8px}
+  .month-nav .button{min-width:40px;padding:8px}
+  .weekdays,.calendar-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr))}
+  .weekdays{margin-bottom:5px}
+  .weekday{text-align:center;color:var(--muted);font-size:11px;padding:7px 2px}
+  .day{
+    min-height:98px;padding:7px 6px;border:1px solid var(--line);background:rgba(14,24,28,.45);
+    text-align:left;color:var(--text);cursor:pointer;overflow:hidden;
+  }
+  .day:hover{background:var(--cyan-soft)}
+  .day.outside{color:#52676c;background:rgba(14,24,28,.2)}
+  .day.selected{outline:2px solid var(--cyan);outline-offset:-2px}
+  .day.today .day-number{color:var(--cyan);font-weight:700}
+  .day-number{font-size:12px}
+  .day-events{display:grid;gap:3px;margin-top:5px}
+  .event-chip{
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border-radius:3px;
+    padding:3px 4px;background:rgba(34,211,230,.14);color:var(--cyan);font-size:10px;
+  }
+  .more-events{color:var(--muted);font-size:10px}
+  .calendar-legend{margin-top:12px;color:var(--muted);font-size:11px}
+  .side-column{display:grid;gap:14px}
+  .side-column h2{font-size:16px;font-weight:500}
+  .selected-label{margin-top:5px;color:var(--muted);font-size:12px}
+  .appointment-list{display:grid;gap:9px;margin-top:14px}
+  .appointment{
+    padding:11px;border:1px solid var(--line);border-radius:7px;background:var(--panel);
+  }
+  .appointment-head{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+  .appointment-time{color:var(--cyan);font-size:12px;font-weight:600}
+  .appointment-patient{margin-top:5px;font-size:14px;font-weight:500}
+  .appointment-reason{margin-top:4px;color:var(--muted);font-size:12px;line-height:1.4;white-space:pre-wrap;overflow-wrap:anywhere}
+  .item-actions{display:flex;gap:5px}
+  .small-button{padding:4px 7px;border:1px solid var(--line);border-radius:4px;background:transparent;color:var(--muted);cursor:pointer;font-size:11px}
+  .small-button:hover{color:var(--cyan);border-color:var(--cyan)}
+  .small-button.delete:hover{color:#ff9a9a;border-color:var(--red)}
+  .empty{padding:18px 8px;text-align:center;color:var(--muted);font-size:13px;line-height:1.5}
+  .form-card[hidden]{display:none}
+  .form-card h2{margin-bottom:14px}
+  .appointment-form{display:grid;gap:11px}
+  .field{display:grid;gap:5px}
+  .field label{color:var(--muted);font-size:12px}
+  .field input,.field select,.field textarea{
+    width:100%;padding:10px 11px;border:1px solid var(--line);border-radius:6px;
+    background:var(--panel);color:var(--text);font:inherit;font-size:13px;
+  }
+  .field textarea{min-height:72px;resize:vertical}
+  .field input:focus,.field select:focus,.field textarea:focus{outline:2px solid var(--cyan);outline-offset:1px}
+  .form-actions{display:flex;gap:8px;flex-wrap:wrap}
+  .form-message{min-height:17px;color:var(--muted);font-size:12px}
+  .form-message.error{color:#ff9a9a}
+  .upcoming-list{display:grid;gap:8px;margin-top:12px}
+  .upcoming-item{display:flex;justify-content:space-between;gap:10px;padding-bottom:8px;border-bottom:1px solid var(--line);font-size:12px}
+  .upcoming-item:last-child{padding-bottom:0;border-bottom:0}
+  .upcoming-date{color:var(--cyan);white-space:nowrap}
+  @media(max-width:920px){
+    .layout{grid-template-columns:1fr}.side-column{grid-template-columns:1fr 1fr}
+    .agenda-filters{grid-template-columns:repeat(2,minmax(0,1fr))}
+  }
+  @media(max-width:620px){
+    .topbar{height:58px;padding:0 10px;gap:7px}.brand{font-size:16px}.brand span,.user>div:last-child{display:none}
+    main{padding:18px 10px}.page-head{align-items:flex-start}.page-actions{align-items:stretch;flex-direction:column}
+    .agenda-filters{grid-template-columns:1fr}
+    .layout{gap:10px}.side-column{grid-template-columns:1fr}.card{padding:11px}
+    .day{min-height:72px;padding:5px 3px}.weekday{font-size:9px}
+    .event-chip{font-size:9px;padding:2px}.calendar-head h2{font-size:16px}
+  }
+  @media print{
+    .topbar,#newAppointment,.month-nav,.calendar-legend,.agenda-filters,.form-card,.item-actions{display:none!important}
+    body{background:#fff;color:#000}
+    .layout{display:grid;grid-template-columns:1.6fr .9fr;gap:10px}
+    .side-column{display:grid;grid-template-columns:1fr;gap:10px}
+    .card{background:#fff;border:1px solid #aaa}
+    .day{color:#000}.day-number{color:#000}
+    .day{background:#fff;color:#000;border-color:#aaa;min-height:80px}.event-chip{color:#000}
+  }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <a class="top-link" href="index.html">← Inicio</a>
+  <div class="brand">👣 <b>NeuroStep IA</b> <span>- Medical Portal</span></div>
+  <div class="spacer"></div>
+  <div class="user">
+    <div class="avatar" id="doctorAvatar">--</div>
+    <div><span id="doctorName">Doctor</span><small id="doctorRole"></small></div>
+  </div>
+  <button class="logout" id="logout" type="button">Salir</button>
+</header>
+<main>
+  <div class="page-head">
+    <div><h1>Agenda de citas</h1><p class="intro">Programa y administra las próximas citas de tus pacientes.</p></div>
+    <div class="page-actions">
+      <button class="button" id="exportAgenda" type="button">Exportar CSV</button>
+      <button class="button primary" id="newAppointment" type="button">Agregar cita</button>
+    </div>
+  </div>
+  <section class="agenda-filters" aria-label="Filtros de agenda">
+    <label>Paciente
+      <select id="filterPatient"><option value="">Todos los pacientes</option></select>
+    </label>
+    <label>Desde
+      <input id="filterFrom" type="date">
+    </label>
+    <label>Hasta
+      <input id="filterTo" type="date">
+    </label>
+    <button class="button" id="clearFilters" type="button">Limpiar filtros</button>
+    <span class="filter-message" id="filterMessage" role="status" aria-live="polite"></span>
+  </section>
+  <div class="layout">
+    <section class="card" aria-label="Calendario mensual">
+      <div class="calendar-head">
+        <div class="month-nav">
+          <button class="button" id="previousMonth" type="button" aria-label="Mes anterior">‹</button>
+          <button class="button" id="todayButton" type="button">Hoy</button>
+          <button class="button" id="nextMonth" type="button" aria-label="Mes siguiente">›</button>
+        </div>
+        <h2 id="monthLabel"></h2>
+      </div>
+      <div class="weekdays" aria-hidden="true">
+        <div class="weekday">Lun</div><div class="weekday">Mar</div><div class="weekday">Mié</div>
+        <div class="weekday">Jue</div><div class="weekday">Vie</div><div class="weekday">Sáb</div><div class="weekday">Dom</div>
+      </div>
+      <div class="calendar-grid" id="calendarGrid"></div>
+      <p class="calendar-legend">Selecciona un día para ver sus citas. Haz clic en una cita para editarla.</p>
+    </section>
+    <aside class="side-column">
+      <section class="card form-card" id="formCard" hidden>
+        <h2 id="formTitle">Agregar cita</h2>
+        <form class="appointment-form" id="appointmentForm">
+          <input type="hidden" id="appointmentId">
+          <div class="field">
+            <label for="appointmentPatient">Paciente</label>
+            <select id="appointmentPatient">
+              <option value="">Sin paciente asociado</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="appointmentDate">Fecha *</label>
+            <input id="appointmentDate" type="date" required>
+          </div>
+          <div class="field">
+            <label for="appointmentTime">Hora *</label>
+            <input id="appointmentTime" type="time" required>
+          </div>
+          <div class="field">
+            <label for="appointmentReason">Motivo o notas</label>
+            <textarea id="appointmentReason" maxlength="1000" placeholder="Motivo de la consulta..."></textarea>
+          </div>
+          <p class="form-message" id="formMessage" role="status" aria-live="polite"></p>
+          <div class="form-actions">
+            <button class="button primary" id="saveAppointment" type="submit">Guardar cita</button>
+            <button class="button" id="cancelForm" type="button">Cancelar</button>
+          </div>
+        </form>
+      </section>
+      <section class="card" aria-labelledby="selectedDayTitle">
+        <h2 id="selectedDayTitle">Citas del día</h2>
+        <p class="selected-label" id="selectedDateLabel"></p>
+        <div class="appointment-list" id="dayAppointments"></div>
+      </section>
+      <section class="card">
+        <h2>Próximas citas</h2>
+        <div class="upcoming-list" id="upcomingAppointments"></div>
+      </section>
+    </aside>
+  </div>
+</main>
+<script>
+(async () => {
+let doctor;
+try {
+  doctor = await window.supabaseApp.requireDoctor();
+  if (!doctor) return;
+} catch (error) {
+  console.error("No se pudo inicializar la agenda:", error);
+  document.getElementById("dayAppointments").textContent =
+    "No se pudo validar la sesión. Inicia sesión de nuevo.";
+  return;
+}
+document.getElementById("doctorName").textContent = doctor.name;
+document.getElementById("doctorRole").textContent = doctor.role || "";
+document.getElementById("doctorAvatar").textContent =
+  String(doctor.name).split(/\s+/).filter(Boolean).map(part => part[0]).join("").slice(0, 2).toUpperCase() || "--";
+
+document.getElementById("logout").addEventListener("click", async () => {
+  try {
+    await window.supabaseApp.signOut();
+  } catch (error) {
+    console.error("No se pudo cerrar la sesión:", error);
+    alert("No se pudo cerrar la sesión. Inténtalo de nuevo.");
+  }
+});
+
+const monthLabel = document.getElementById("monthLabel");
+const calendarGrid = document.getElementById("calendarGrid");
+const appointmentForm = document.getElementById("appointmentForm");
+const formCard = document.getElementById("formCard");
+const formMessage = document.getElementById("formMessage");
+const patientSelect = document.getElementById("appointmentPatient");
+const filterPatient = document.getElementById("filterPatient");
+const filterFrom = document.getElementById("filterFrom");
+const filterTo = document.getElementById("filterTo");
+const filterMessage = document.getElementById("filterMessage");
+const dateInput = document.getElementById("appointmentDate");
+const appointmentIdInput = document.getElementById("appointmentId");
+const dateFormatter = new Intl.DateTimeFormat("es-MX", {dateStyle:"full"});
+const monthFormatter = new Intl.DateTimeFormat("es-MX", {month:"long", year:"numeric"});
+let appointments = [];
+let storageError = "";
+let displayedMonth = new Date();
+displayedMonth = new Date(displayedMonth.getFullYear(), displayedMonth.getMonth(), 1);
+let selectedDate = localDateKey(new Date());
+
+function localDateKey(date){
+  return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}-${String(date.getDate()).padStart(2,"0")}`;
+}
+
+function formatDate(key){
+  const [year, month, day] = key.split("-").map(Number);
+  return dateFormatter.format(new Date(year, month - 1, day));
+}
+
+function escapeText(value){
+  return esc(String(value ?? ""));
+}
+
+function patientName(id){
+  const patient = PATIENTS.find(item => item.id === id);
+  return patient ? patient.fullName || patient.name || "Paciente" : "Paciente no disponible";
+}
+
+function populatePatientOptions(){
+  patientSelect.innerHTML = '<option value="">Sin paciente asociado</option>' + PATIENTS.map(patient =>
+    `<option value="${escapeText(patient.id)}">${escapeText(patient.fullName || patient.name || "Paciente")}</option>`
+  ).join("");
+  filterPatient.innerHTML = '<option value="">Todos los pacientes</option>' + PATIENTS.map(patient =>
+    `<option value="${escapeText(patient.id)}">${escapeText(patient.fullName || patient.name || "Paciente")}</option>`
+  ).join("");
+}
+
+function visibleAppointments(){
+  if (filterFrom.value && filterTo.value && filterFrom.value > filterTo.value) {
+    filterMessage.textContent = "La fecha inicial debe ser anterior o igual a la fecha final.";
+    return [];
+  }
+  filterMessage.textContent = "";
+  return appointments.filter(item =>
+    (!filterPatient.value || item.patientId === filterPatient.value) &&
+    (!filterFrom.value || item.date >= filterFrom.value) &&
+    (!filterTo.value || item.date <= filterTo.value)
+  );
+}
+
+function renderCalendar(){
+  monthLabel.textContent = monthFormatter.format(displayedMonth);
+  const year = displayedMonth.getFullYear();
+  const month = displayedMonth.getMonth();
+  const first = new Date(year, month, 1);
+  const startOffset = (first.getDay() + 6) % 7;
+  const gridStart = new Date(year, month, 1 - startOffset);
+  const todayKey = localDateKey(new Date());
+  const filteredAppointments = visibleAppointments();
+  const days = [];
+
+  for (let index = 0; index < 42; index++) {
+    const day = new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate() + index);
+    const key = localDateKey(day);
+    const dayAppointments = filteredAppointments.filter(item => item.date === key)
+      .sort((a, b) => a.time.localeCompare(b.time));
+    const chips = dayAppointments.slice(0, 2).map(item =>
+      `<span class="event-chip">${escapeText(item.time)} ${escapeText(patientName(item.patientId))}</span>`
+    ).join("");
+    const extra = dayAppointments.length > 2 ? `<span class="more-events">+${dayAppointments.length - 2} más</span>` : "";
+    const classes = ["day"];
+    if (day.getMonth() !== month) classes.push("outside");
+    if (key === selectedDate) classes.push("selected");
+    if (key === todayKey) classes.push("today");
+    days.push(`<button type="button" class="${classes.join(" ")}" data-date="${key}" aria-label="${escapeText(formatDate(key))}, ${dayAppointments.length} citas">
+      <span class="day-number">${day.getDate()}</span>
+      <span class="day-events">${chips}${extra}</span>
+    </button>`);
+  }
+  calendarGrid.innerHTML = days.join("");
+  calendarGrid.querySelectorAll(".day").forEach(button => {
+    button.addEventListener("click", () => {
+      selectedDate = button.dataset.date;
+      if (new Date(`${selectedDate}T00:00:00`) < new Date(`${localDateKey(new Date())}T00:00:00`)) {
+        closeForm();
+      }
+      renderCalendar();
+      renderDayAppointments();
+    });
+  });
+}
+
+function renderDayAppointments(){
+  document.getElementById("selectedDateLabel").textContent = formatDate(selectedDate);
+  const list = document.getElementById("dayAppointments");
+  const items = visibleAppointments().filter(item => item.date === selectedDate)
+    .sort((a, b) => a.time.localeCompare(b.time));
+  if (!items.length) {
+    list.innerHTML = `<p class="empty">${storageError ? escapeText(storageError) : "No hay citas para este día."}</p>`;
+    return;
+  }
+  list.innerHTML = items.map(item => `
+    <article class="appointment">
+      <div class="appointment-head">
+        <div><p class="appointment-time">${escapeText(item.time)}</p>
+          <p class="appointment-patient">${escapeText(item.patientId ? patientName(item.patientId) : "Sin paciente asociado")}</p></div>
+        <div class="item-actions">
+          <button class="small-button" type="button" data-edit="${escapeText(item.id)}" aria-label="Editar cita de las ${escapeText(item.time)}">Editar</button>
+          <button class="small-button delete" type="button" data-delete="${escapeText(item.id)}" aria-label="Eliminar cita de las ${escapeText(item.time)}">Eliminar</button>
+        </div>
+      </div>
+      ${item.reason ? `<p class="appointment-reason">${escapeText(item.reason)}</p>` : ""}
+    </article>`).join("");
+  list.querySelectorAll("[data-edit]").forEach(button => button.addEventListener("click", () => openEditForm(button.dataset.edit)));
+  list.querySelectorAll("[data-delete]").forEach(button => button.addEventListener("click", () => deleteAppointment(button.dataset.delete)));
+}
+
+function renderUpcoming(){
+  const now = new Date();
+  const nowKey = localDateKey(now);
+  const nowTime = `${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}`;
+  const next = visibleAppointments().filter(item => item.date > nowKey || (item.date === nowKey && item.time >= nowTime))
+    .sort((a, b) => `${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`))
+    .slice(0, 5);
+  const container = document.getElementById("upcomingAppointments");
+  container.innerHTML = next.length ? next.map(item => `
+    <div class="upcoming-item">
+      <span>${escapeText(item.patientId ? patientName(item.patientId) : "Cita sin paciente")}</span>
+      <span class="upcoming-date">${escapeText(item.date)} · ${escapeText(item.time)}</span>
+    </div>`).join("") : `<p class="empty">${storageError ? escapeText(storageError) : "No hay próximas citas."}</p>`;
+}
+
+function renderAll(){
+  renderCalendar();
+  renderDayAppointments();
+  renderUpcoming();
+}
+
+function openNewForm(date = selectedDate){
+  appointmentForm.reset();
+  appointmentIdInput.value = "";
+  document.getElementById("formTitle").textContent = "Agregar cita";
+  document.getElementById("saveAppointment").textContent = "Guardar cita";
+  dateInput.min = localDateKey(new Date());
+  dateInput.value = date < dateInput.min ? dateInput.min : date;
+  formMessage.textContent = "";
+  formMessage.className = "form-message";
+  formCard.hidden = false;
+  dateInput.focus();
+}
+
+function openEditForm(id){
+  const appointment = appointments.find(item => item.id === id);
+  if (!appointment) return;
+  appointmentIdInput.value = appointment.id;
+  patientSelect.value = appointment.patientId || "";
+  dateInput.min = localDateKey(new Date());
+  dateInput.value = appointment.date;
+  document.getElementById("appointmentTime").value = appointment.time;
+  document.getElementById("appointmentReason").value = appointment.reason || "";
+  document.getElementById("formTitle").textContent = "Modificar cita";
+  document.getElementById("saveAppointment").textContent = "Guardar cambios";
+  formMessage.textContent = "";
+  formMessage.className = "form-message";
+  formCard.hidden = false;
+  dateInput.focus();
+}
+
+function closeForm(){
+  formCard.hidden = true;
+  appointmentForm.reset();
+  appointmentIdInput.value = "";
+}
+
+async function deleteAppointment(id){
+  const appointment = appointments.find(item => item.id === id);
+  if (!appointment || !confirm(`¿Eliminar la cita del ${appointment.date} a las ${appointment.time}?`)) return;
+  try {
+    await window.supabaseApp.deleteAppointment(id);
+    appointments = appointments.filter(item => item.id !== id);
+    renderAll();
+  } catch (error) {
+    console.error("No se pudo eliminar la cita en Supabase:", error);
+    storageError = "No se pudo eliminar la cita en Supabase. Inténtalo de nuevo.";
+    renderAll();
+  }
+}
+
+document.getElementById("previousMonth").addEventListener("click", () => {
+  displayedMonth = new Date(displayedMonth.getFullYear(), displayedMonth.getMonth() - 1, 1);
+  renderCalendar();
+});
+document.getElementById("nextMonth").addEventListener("click", () => {
+  displayedMonth = new Date(displayedMonth.getFullYear(), displayedMonth.getMonth() + 1, 1);
+  renderCalendar();
+});
+document.getElementById("todayButton").addEventListener("click", () => {
+  const today = new Date();
+  displayedMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+  selectedDate = localDateKey(today);
+  renderAll();
+});
+document.getElementById("newAppointment").addEventListener("click", () => openNewForm(selectedDate));
+document.getElementById("cancelForm").addEventListener("click", closeForm);
+filterPatient.addEventListener("change", renderAll);
+filterFrom.addEventListener("change", renderAll);
+filterTo.addEventListener("change", renderAll);
+document.getElementById("clearFilters").addEventListener("click", () => {
+  filterPatient.value = "";
+  filterFrom.value = "";
+  filterTo.value = "";
+  renderAll();
+});
+document.getElementById("exportAgenda").addEventListener("click", () => {
+  const filtered = visibleAppointments()
+    .slice().sort((a,b) => `${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`));
+  downloadCsv("agenda-citas.csv",
+    ["Fecha","Hora","Paciente","Motivo"],
+    filtered.map(item => [
+      item.date, item.time, item.patientId ? patientName(item.patientId) : "Sin paciente asociado",
+      item.reason || ""
+    ]));
+});
+
+appointmentForm.addEventListener("submit", async event => {
+  event.preventDefault();
+  formMessage.textContent = "";
+  formMessage.className = "form-message";
+  const appointment = {
+    id: appointmentIdInput.value,
+    patientId: patientSelect.value,
+    date: dateInput.value,
+    time: document.getElementById("appointmentTime").value,
+    reason: document.getElementById("appointmentReason").value.trim()
+  };
+  const todayKey = localDateKey(new Date());
+  if (!appointment.date || appointment.date < todayKey) {
+    formMessage.textContent = "Elige una fecha futura o el día de hoy.";
+    formMessage.classList.add("error");
+    dateInput.focus();
+    return;
+  }
+  const duplicate = appointments.some(item =>
+    item.id !== appointment.id && item.date === appointment.date && item.time === appointment.time
+  );
+  if (duplicate) {
+    formMessage.textContent = "Ya existe una cita a esa hora. Elige otro horario.";
+    formMessage.classList.add("error");
+    document.getElementById("appointmentTime").focus();
+    return;
+  }
+
+  try {
+    await window.supabaseApp.saveAppointment(appointment);
+    appointments = await window.supabaseApp.getAppointments();
+    selectedDate = appointment.date;
+    const [year, month] = appointment.date.split("-").map(Number);
+    displayedMonth = new Date(year, month - 1, 1);
+    closeForm();
+    renderAll();
+  } catch (error) {
+    console.error("No se pudo guardar la cita en Supabase:", error);
+    formMessage.textContent = error.code === "23505"
+      ? "Ya existe una cita a esa hora. Elige otro horario."
+      : "No se pudo guardar la cita en Supabase. Verifica la conexión e inténtalo de nuevo.";
+    formMessage.classList.add("error");
+  }
+});
+
+populatePatientOptions();
+renderAll();
+
+const [patientsResult, appointmentsResult] = await Promise.allSettled([
+  loadPatientsFromSupabase(),
+  window.supabaseApp.getAppointments()
+]);
+if (patientsResult.status === "fulfilled") {
+  populatePatientOptions();
+} else {
+  console.error("No se pudieron cargar los pacientes para la agenda:", patientsResult.reason);
+  storageError = "No se pudo cargar la lista de pacientes desde Supabase.";
+}
+if (appointmentsResult.status === "fulfilled") {
+  appointments = appointmentsResult.value;
+} else {
+  console.error("No se pudieron cargar las citas desde Supabase:", appointmentsResult.reason);
+  storageError = storageError
+    ? `${storageError} Tampoco se pudieron cargar las citas desde Supabase.`
+    : "No se pudieron cargar las citas desde Supabase.";
+}
+renderAll();
+})();
+</script>
+</body>
+</html>

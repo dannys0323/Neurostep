@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Análisis - NeuroStep IA</title>
+<script src="supabase-connection.js"></script>
+<script src="data.js"></script>
+<style>
+  :root{
+    --bg:#0a1114; --panel:#0e181c; --card:#101c21; --line:#17323a;
+    --cyan:#22d3e6; --cyan-soft:rgba(34,211,230,.15);
+    --text:#e6f1f3; --muted:#7f98a0;
+    --green:#3fae49; --red:#e04848; --orange:#f0a020;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{min-height:100vh;background:var(--bg);color:var(--text);font-family:"Segoe UI",Roboto,Arial,sans-serif}
+  .topbar{
+    height:64px;display:flex;align-items:center;gap:14px;padding:0 24px;
+    background:var(--panel);border-bottom:1px solid var(--line);
+  }
+  .brand{font-size:20px}.brand b{color:var(--cyan);font-weight:600}.brand span{color:var(--muted)}
+  .spacer{flex:1}
+  .user{display:flex;align-items:center;gap:10px;font-size:14px}
+  .user small{display:block;color:var(--muted);font-size:11px}
+  .avatar{
+    width:36px;height:36px;flex-shrink:0;border:1px solid var(--line);border-radius:50%;
+    background:linear-gradient(135deg,#2a4a55,#173039);display:grid;place-items:center;
+    color:var(--cyan);font-size:12px;font-weight:600;
+  }
+  .top-link,.logout{
+    padding:8px 12px;border:1px solid var(--line);border-radius:6px;
+    background:transparent;color:var(--cyan);text-decoration:none;cursor:pointer;font-size:13px;
+  }
+  .top-link:hover,.logout:hover{border-color:var(--cyan);background:var(--cyan-soft)}
+  main{max-width:1200px;margin:0 auto;padding:28px 24px}
+  h1{font-size:26px;font-weight:400}
+  .intro{margin-top:6px;color:var(--muted);font-size:13px}
+  .stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-top:22px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:16px}
+  .stat-label{color:var(--muted);font-size:12px}
+  .stat-value{margin-top:9px;font-size:28px;font-weight:600}
+  .cyan{color:var(--cyan)}.red{color:var(--red)}.orange{color:var(--orange)}.green{color:var(--green)}
+  .charts{display:grid;grid-template-columns:1fr 1.4fr;gap:14px;margin-top:14px}
+  h2{font-size:15px;font-weight:500}
+  .chart-sub{color:var(--muted);font-size:11px;margin-top:5px}
+  .risk-bars{display:grid;gap:16px;margin-top:22px}
+  .bar-row{display:grid;grid-template-columns:105px 1fr 32px;align-items:center;gap:10px;font-size:12px}
+  .bar-label{color:var(--muted)}
+  .bar-track{height:10px;overflow:hidden;border-radius:8px;background:#17282d}
+  .bar-fill{height:100%;min-width:0;border-radius:inherit}
+  .bar-fill.red{background:var(--red)}.bar-fill.orange{background:var(--orange)}.bar-fill.green{background:var(--green)}
+  .bar-count{text-align:right}
+  .trend-wrap{margin-top:14px}
+  .trend-wrap svg{width:100%;height:220px;display:block;overflow:visible}
+  .axis-label{fill:var(--muted);font:11px "Segoe UI",Arial,sans-serif}
+  .trend-empty{display:grid;place-items:center;min-height:220px;color:var(--muted);font-size:13px;text-align:center}
+  .section{margin-top:14px}
+  .section-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+  .table-controls{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+  .table-controls select,.table-controls button{
+    padding:8px 10px;border:1px solid var(--line);border-radius:6px;
+    background:var(--panel);color:var(--text);font:inherit;font-size:12px;
+  }
+  .table-controls button{color:var(--cyan);cursor:pointer}
+  .table-controls button:hover{border-color:var(--cyan);background:var(--cyan-soft)}
+  .table-wrap{overflow:auto}
+  table{width:100%;min-width:600px;border-collapse:collapse;font-size:13px}
+  th{
+    padding:9px 8px;text-align:left;color:var(--muted);font-size:10px;font-weight:500;
+    letter-spacing:.5px;text-transform:uppercase;
+  }
+  td{padding:10px 8px;border-top:1px solid var(--line)}
+  tbody tr:hover td{background:rgba(34,211,230,.04)}
+  .patient-link{color:var(--text);text-decoration:none}
+  .patient-link:hover{color:var(--cyan);text-decoration:underline}
+  .badge{display:inline-block;min-width:42px;padding:4px 8px;border-radius:4px;text-align:center;font-weight:600;color:#fff}
+  .b-green{background:var(--green)}.b-orange{background:var(--orange);color:#1a1200}.b-red{background:var(--red)}
+  .priority-0{color:#ff7373}.priority-1{color:var(--orange)}.priority-2{color:var(--green)}
+  .empty{padding:25px 12px;text-align:center;color:var(--muted)}
+  .footnote{margin:12px 2px 0;color:var(--muted);font-size:11px;line-height:1.5}
+  @media(max-width:800px){.charts{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  @media(max-width:560px){
+    .topbar{height:58px;padding:0 12px;gap:8px}.brand{font-size:16px}.brand span,.user>div:last-child{display:none}
+    main{padding:22px 14px}.stats{gap:8px}.card{padding:13px}.stat-value{font-size:24px}
+    .bar-row{grid-template-columns:90px 1fr 25px;gap:7px}
+    .section-head{align-items:flex-start;flex-direction:column}
+    .table-controls{justify-content:flex-start}
+    .table-controls select,.table-controls button{flex:1}
+  }
+  @media print{
+    body{background:#fff;color:#000}
+    .topbar,.table-controls{display:none!important}
+    main{max-width:none;padding:0}
+    .card{break-inside:avoid;background:#fff;color:#000;border:1px solid #aaa;box-shadow:none}
+    th,td{color:#000;border-color:#aaa}
+    .badge{border:1px solid #777}
+    .patient-link{color:#000}
+    .axis-label{fill:#333}
+  }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <a class="top-link" href="index.html">← Inicio</a>
+  <div class="brand">👣 <b>NeuroStep IA</b> <span>- Medical Portal</span></div>
+  <div class="spacer"></div>
+  <div class="user">
+    <div class="avatar" id="doctorAvatar">--</div>
+    <div><span id="doctorName">Doctor</span><small id="doctorRole"></small></div>
+  </div>
+  <button class="logout" id="logout" type="button">Salir</button>
+</header>
+<main>
+  <h1>Análisis de pacientes</h1>
+  <p class="intro">Resumen de riesgos e historial calculado a partir de los registros guardados.</p>
+
+  <section class="stats" aria-label="Resumen de análisis">
+    <article class="card"><div class="stat-label">Pacientes registrados</div><div class="stat-value cyan" id="totalPatients">0</div></article>
+    <article class="card"><div class="stat-label">Riesgo promedio actual</div><div class="stat-value" id="averageRisk">—</div></article>
+    <article class="card"><div class="stat-label">Revisiones urgentes</div><div class="stat-value red" id="urgentPatients">0</div></article>
+    <article class="card"><div class="stat-label">Registros de historial</div><div class="stat-value cyan" id="totalRecords">0</div></article>
+  </section>
+
+  <section class="charts" aria-label="Gráficas de análisis">
+    <article class="card">
+      <h2>Distribución actual del riesgo</h2>
+      <p class="chart-sub">Pacientes agrupados por índice de riesgo registrado.</p>
+      <div class="risk-bars" id="riskBars"></div>
+    </article>
+    <article class="card">
+      <h2>Evolución del riesgo</h2>
+      <p class="chart-sub">Promedio de los registros de historial por fecha.</p>
+      <div class="trend-wrap" id="trendChart"></div>
+    </article>
+  </section>
+
+  <section class="card section">
+    <div class="section-head">
+      <h2>Pacientes por prioridad de revisión</h2>
+      <div class="table-controls">
+        <select id="priorityFilter" aria-label="Filtrar por prioridad">
+          <option value="">Todas las prioridades</option><option value="0">Urgente</option>
+          <option value="1">Próxima</option><option value="2">Habitual</option>
+        </select>
+        <select id="patientSort" aria-label="Ordenar pacientes">
+          <option value="priority">Prioridad</option><option value="name">Nombre</option>
+          <option value="risk">Riesgo: mayor a menor</option><option value="date">Revisión más antigua</option>
+        </select>
+        <button id="exportAnalysis" type="button">Exportar CSV</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Paciente</th><th>Prioridad</th><th>Índice de riesgo</th><th>Neuropatía</th><th>Último análisis</th></tr></thead>
+        <tbody id="patientRows"></tbody>
+      </table>
+    </div>
+    <p class="empty" id="emptyPatients" hidden>No hay pacientes registrados.</p>
+  </section>
+  <p class="footnote">Este resumen muestra datos guardados en Supabase; sirve como apoyo informativo y no sustituye una valoración clínica.</p>
+</main>
+<script>
+(async () => {
+let doctor;
+try {
+  doctor = await window.supabaseApp.requireDoctor();
+  if (!doctor) return;
+  await loadPatientsFromSupabase();
+} catch (error) {
+  console.error("No se pudo cargar el análisis desde Supabase:", error);
+  document.getElementById("patientRows").innerHTML =
+    '<tr><td colspan="5" class="empty">No se pudieron cargar los datos. Verifica la conexión y la configuración de Supabase.</td></tr>';
+  return;
+}
+  const initials = String(doctor.name).split(/\s+/).filter(Boolean).map(part => part[0]).join("").slice(0, 2).toUpperCase() || "--";
+  document.getElementById("doctorAvatar").textContent = initials;
+  document.getElementById("doctorName").textContent = doctor.name;
+  document.getElementById("doctorRole").textContent = doctor.role || "";
+
+document.getElementById("logout").addEventListener("click", async () => {
+  try {
+    await window.supabaseApp.signOut();
+  } catch (error) {
+    console.error("No se pudo cerrar la sesión:", error);
+    alert("No se pudo cerrar la sesión. Inténtalo de nuevo.");
+  }
+});
+
+const allPatients = Array.isArray(PATIENTS) ? PATIENTS : [];
+const patients = [...allPatients].sort(comparePatientsForReview);
+let visiblePatients = [...patients];
+const priorityFilter = document.getElementById("priorityFilter");
+const patientSort = document.getElementById("patientSort");
+const priorities = ["Urgente", "Próxima", "Habitual"];
+const riskGroups = [
+  {label:"Alto (8–10)", className:"red", matches:risk => risk > 7},
+  {label:"Moderado (4–7)", className:"orange", matches:risk => risk >= 4 && risk <= 7},
+  {label:"Bajo (0–3)", className:"green", matches:risk => risk < 4}
+];
+
+function safe(value){
+  return esc(String(value ?? ""));
+}
+
+function parseRecordDate(value){
+  const date = String(value || "");
+  let parts = date.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (parts) return {key:`${parts[1]}-${parts[2]}-${parts[3]}`, label:`${parts[3]}/${parts[2]}/${parts[1]}`};
+  parts = date.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (parts) return {key:`${parts[3]}-${parts[2]}-${parts[1]}`, label:date};
+  return null;
+}
+
+function renderRiskDistribution(){
+  const counts = riskGroups.map(group => patients.filter(patient => group.matches(Number(patient.risk) || 0)).length);
+  const max = Math.max(1, ...counts);
+  document.getElementById("riskBars").innerHTML = riskGroups.map((group, index) => `
+    <div class="bar-row">
+      <span class="bar-label">${group.label}</span>
+      <div class="bar-track" role="img" aria-label="${group.label}: ${counts[index]} pacientes">
+        <div class="bar-fill ${group.className}" style="width:${counts[index] / max * 100}%"></div>
+      </div>
+      <strong class="bar-count">${counts[index]}</strong>
+    </div>`).join("");
+}
+
+function renderTrend(){
+  const byDate = new Map();
+  allPatients.forEach(patient => {
+    (Array.isArray(patient.history) ? patient.history : []).forEach(record => {
+      const date = parseRecordDate(record.date);
+      const risk = Number(record.risk);
+      if (!date || !Number.isFinite(risk)) return;
+      const current = byDate.get(date.key) || {label:date.label, total:0, count:0};
+      current.total += risk;
+      current.count++;
+      byDate.set(date.key, current);
+    });
+  });
+  const points = [...byDate.entries()].sort(([a], [b]) => a.localeCompare(b))
+    .map(([key, value]) => ({key, label:value.label, risk:value.total / value.count}));
+  const container = document.getElementById("trendChart");
+  if (!points.length) {
+    container.innerHTML = '<p class="trend-empty">Aún no hay registros de historial con fecha para graficar.</p>';
+    return;
+  }
+  if (points.length === 1) {
+    container.innerHTML = `<p class="trend-empty">Hay un registro (${safe(points[0].label)}) con riesgo ${points[0].risk.toFixed(1)}.<br>Agrega más revisiones para ver la evolución.</p>`;
+    return;
+  }
+
+  const width = 640, height = 190, pad = {top:16, right:20, bottom:34, left:34};
+  const plotWidth = width - pad.left - pad.right;
+  const plotHeight = height - pad.top - pad.bottom;
+  const maxRisk = Math.max(10, ...points.map(point => point.risk));
+  const coords = points.map((point, index) => ({
+    x:pad.left + index * plotWidth / (points.length - 1),
+    y:pad.top + plotHeight - point.risk / maxRisk * plotHeight,
+    ...point
+  }));
+  const path = coords.map((point, index) => `${index ? "L" : "M"}${point.x.toFixed(1)},${point.y.toFixed(1)}`).join(" ");
+  const grid = [0, 0.5, 1].map(fraction => {
+    const y = pad.top + plotHeight * fraction;
+    const value = maxRisk * (1 - fraction);
+    return `<line x1="${pad.left}" x2="${width-pad.right}" y1="${y}" y2="${y}" stroke="#17323a"/>
+      <text x="${pad.left-8}" y="${y+4}" text-anchor="end" class="axis-label">${value.toFixed(0)}</text>`;
+  }).join("");
+  const dots = coords.map(point => `<circle cx="${point.x}" cy="${point.y}" r="4" fill="#22d3e6"><title>${safe(point.label)}: riesgo ${point.risk.toFixed(1)}</title></circle>`).join("");
+  const labels = [coords[0], coords[Math.floor((coords.length - 1) / 2)], coords[coords.length - 1]]
+    .filter((point, index, values) => values.findIndex(item => item.x === point.x) === index)
+    .map(point => `<text x="${point.x}" y="${height-8}" text-anchor="middle" class="axis-label">${safe(point.label)}</text>`).join("");
+  container.innerHTML = `<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Tendencia histórica del riesgo">
+    ${grid}<path d="${path}" fill="none" stroke="#22d3e6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    ${dots}${labels}
+  </svg>`;
+}
+
+function renderPatients(){
+  const tbody = document.getElementById("patientRows");
+  const empty = document.getElementById("emptyPatients");
+  const filtered = patients.filter(patient =>
+    priorityFilter.value === "" || patientReviewPriority(patient) === Number(priorityFilter.value)
+  );
+  const sortModes = {
+    priority:(a,b) => comparePatientsForReview(a,b),
+    name:(a,b) => String(a.fullName || a.name || "").localeCompare(String(b.fullName || b.name || ""), "es"),
+    risk:(a,b) => (Number(b.risk) || 0) - (Number(a.risk) || 0),
+    date:(a,b) => patientLastReviewTime(a) - patientLastReviewTime(b)
+  };
+  filtered.sort(sortModes[patientSort.value] || sortModes.priority);
+  visiblePatients = filtered;
+  if (!filtered.length) {
+    tbody.innerHTML = "";
+    empty.hidden = false;
+    empty.textContent = patients.length ? "No hay pacientes con esta prioridad." : "No hay pacientes registrados.";
+    return;
+  }
+  empty.hidden = true;
+  tbody.innerHTML = filtered.map(patient => {
+    const risk = Number(patient.risk) || 0;
+    const neuro = patient.neuro || "ok";
+    const color = patient.color || riskColor(risk);
+    return `<tr>
+      <td><a class="patient-link" href="pacientes.html?id=${encodeURIComponent(patient.id || "")}">${safe(patient.fullName || patient.name || "Paciente")}</a></td>
+      <td class="priority-${patientReviewPriority(patient)}">${priorities[patientReviewPriority(patient)]}</td>
+      <td><span class="badge b-${color}">${safe(risk)}</span></td>
+      <td>${safe(patient.neuroLabel || neuro)}</td>
+      <td>${safe(patient.lastDate || "Sin registro")}</td>
+    </tr>`;
+  }).join("");
+}
+
+const totalRisk = patients.reduce((total, patient) => total + (Number(patient.risk) || 0), 0);
+document.getElementById("totalPatients").textContent = patients.length;
+document.getElementById("averageRisk").textContent = patients.length ? (totalRisk / patients.length).toFixed(1) : "—";
+document.getElementById("urgentPatients").textContent = patients.filter(patient => patientReviewPriority(patient) === 0).length;
+document.getElementById("totalRecords").textContent = allPatients.reduce((total, patient) =>
+  total + (Array.isArray(patient.history) ? patient.history.length : 0), 0);
+renderRiskDistribution();
+renderTrend();
+renderPatients();
+priorityFilter.addEventListener("change", renderPatients);
+patientSort.addEventListener("change", renderPatients);
+document.getElementById("exportAnalysis").addEventListener("click", () => {
+  downloadCsv("analisis-pacientes.csv",
+    ["Paciente","Prioridad","Índice de riesgo","Neuropatía","Último análisis"],
+    visiblePatients.map(patient => [
+      patient.fullName || patient.name || "Paciente", priorities[patientReviewPriority(patient)],
+      Number(patient.risk) || 0, patient.neuroLabel || patient.neuro || "Sin dato",
+      patient.lastDate || "Sin registro"
+    ]));
+});
+})();
+</script>
+</body>
+</html>

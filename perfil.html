@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mi perfil - NeuroStep IA</title>
+<style>
+  :root{
+    --bg:#0a1114; --panel:#0e181c; --card:#101c21; --line:#17323a;
+    --cyan:#22d3e6; --cyan-soft:rgba(34,211,230,.15);
+    --text:#e6f1f3; --muted:#7f98a0; --red:#e04848;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{min-height:100vh;background:var(--bg);color:var(--text);font-family:"Segoe UI",Roboto,Arial,sans-serif}
+  .topbar{
+    height:64px;display:flex;align-items:center;gap:16px;padding:0 24px;
+    background:var(--panel);border-bottom:1px solid var(--line);
+  }
+  .brand{font-size:20px}.brand b{color:var(--cyan);font-weight:600}.brand span{color:var(--muted)}
+  .spacer{flex:1}
+  .user{display:flex;align-items:center;gap:10px;font-size:14px}
+  .user small{display:block;color:var(--muted);font-size:11px}
+  .avatar{
+    width:38px;height:38px;flex-shrink:0;border:1px solid var(--line);border-radius:50%;
+    background:linear-gradient(135deg,#2a4a55,#173039);display:grid;place-items:center;
+    color:var(--cyan);font-size:13px;font-weight:600;
+  }
+  .top-link,.logout{
+    padding:8px 12px;border:1px solid var(--line);border-radius:6px;
+    background:transparent;color:var(--cyan);text-decoration:none;cursor:pointer;font-size:13px;
+  }
+  .top-link:hover,.logout:hover{border-color:var(--cyan);background:var(--cyan-soft)}
+  main{max-width:900px;margin:0 auto;padding:32px 24px}
+  h1{font-size:26px;font-weight:400}
+  .intro{margin-top:6px;color:var(--muted);font-size:14px}
+  .profile-card{
+    margin-top:24px;padding:26px;background:var(--card);border:1px solid var(--line);
+    border-radius:10px;box-shadow:0 0 20px rgba(34,211,230,.08);
+  }
+  .profile-heading{display:flex;align-items:center;gap:18px;padding-bottom:22px;border-bottom:1px solid var(--line)}
+  .profile-heading .avatar{width:72px;height:72px;font-size:24px}
+  .profile-heading h2{font-size:22px;font-weight:500}
+  .profile-heading p{margin-top:5px;color:var(--muted);font-size:13px}
+  dl{display:grid;grid-template-columns:minmax(130px,200px) 1fr;gap:0}
+  dt,dd{padding:15px 8px;border-bottom:1px solid var(--line);font-size:14px}
+  dt{color:var(--muted)}dd{overflow-wrap:anywhere}
+  .notice{margin-top:20px;color:var(--muted);font-size:12px;line-height:1.5}
+  .error{
+    max-width:560px;margin:90px auto;padding:24px;text-align:center;
+    border:1px solid var(--red);border-radius:10px;background:rgba(224,72,72,.08);
+  }
+  .error h1{font-size:21px;color:#ff9a9a}
+  .error p{margin:10px 0 18px;color:var(--muted);font-size:14px}
+  @media(max-width:600px){
+    .topbar{padding:0 12px;gap:8px}.brand{font-size:16px}.brand span,.user>div:last-child{display:none}
+    main{padding:24px 14px}.profile-card{padding:18px 14px}
+    dl{grid-template-columns:1fr}dt{padding-bottom:4px;border-bottom:0}dd{padding-top:3px}
+  }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <a class="top-link" href="index.html">← Inicio</a>
+  <div class="brand">👣 <b>NeuroStep IA</b> <span>- Medical Portal</span></div>
+  <div class="spacer"></div>
+  <div class="user">
+    <div class="avatar" id="topAvatar">--</div>
+    <div><span id="topName">Doctor</span><small id="topRole"></small></div>
+  </div>
+  <button class="logout" id="logout" type="button">Salir</button>
+</header>
+<main id="content">
+  <h1>Mi perfil</h1>
+  <p class="intro">Información de la cuenta médica con la que iniciaste sesión.</p>
+  <section class="profile-card" aria-label="Perfil del doctor">
+    <div class="profile-heading">
+      <div class="avatar" id="profileAvatar">--</div>
+      <div><h2 id="profileName"></h2><p id="profileRole"></p></div>
+    </div>
+    <dl>
+      <dt>Nombre</dt><dd id="detailName"></dd>
+      <dt>ID de doctor</dt><dd id="detailId"></dd>
+      <dt>Rol</dt><dd id="detailRole"></dd>
+      <dt>Inicio de sesión</dt><dd id="detailLogin"></dd>
+    </dl>
+    <p class="notice">Los datos del perfil provienen de la sesión actual. Esta pantalla es de consulta y no modifica la cuenta.</p>
+  </section>
+</main>
+<script src="supabase-connection.js"></script>
+<script>
+(async () => {
+  let doctor;
+  try {
+    doctor = await window.supabaseApp.requireDoctor();
+    if (!doctor) return;
+  } catch (error) {
+    console.error("No se pudo cargar el perfil del doctor:", error);
+    document.getElementById("content").textContent =
+      "No se pudo conectar con Supabase. Verifica la conexión y vuelve a intentarlo.";
+    return;
+  }
+
+  const name = String(doctor.name);
+  const initials = name.split(/\s+/).filter(Boolean).map(part => part[0]).join("").slice(0, 2).toUpperCase() || "--";
+  const role = String(doctor.role || "No especificado");
+  const id = String(doctor.id || "No especificado");
+  const loginDate = Number(doctor.loginAt);
+  const loginText = Number.isFinite(loginDate) && loginDate > 0
+    ? new Intl.DateTimeFormat("es-MX", {dateStyle:"long", timeStyle:"short"}).format(new Date(loginDate))
+    : "No disponible";
+
+  document.title = `Mi perfil - ${name} - NeuroStep IA`;
+  document.getElementById("topAvatar").textContent = initials;
+  document.getElementById("topName").textContent = name;
+  document.getElementById("topRole").textContent = role;
+  document.getElementById("profileAvatar").textContent = initials;
+  document.getElementById("profileName").textContent = name;
+  document.getElementById("profileRole").textContent = role;
+  document.getElementById("detailName").textContent = name;
+  document.getElementById("detailId").textContent = id;
+  document.getElementById("detailRole").textContent = role;
+  document.getElementById("detailLogin").textContent = loginText;
+
+document.getElementById("logout").addEventListener("click", async () => {
+  try {
+    await window.supabaseApp.signOut();
+  } catch (error) {
+    console.error("No se pudo cerrar la sesión:", error);
+    alert("No se pudo cerrar la sesión. Inténtalo de nuevo.");
+  }
+});
+})();
+</script>
+</body>
+</html>
